@@ -25,7 +25,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 /* ─── Mock Data & Types ─────────────────────────── */
+
 type InvStatus = "pending" | "approved" | "rejected";
 
 interface PendingInv {
@@ -82,7 +85,8 @@ const AdminDashboard = () => {
   const [withdrawList, setWithdrawList] = useState<WithdrawReq[]>([]);
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/withdrawals")
+    fetch(`${API_URL}/api/withdrawals`)
+
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
@@ -106,7 +110,8 @@ const AdminDashboard = () => {
   }, []);
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/investments")
+    fetch(`${API_URL}/api/investments`)
+
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
@@ -134,7 +139,8 @@ const AdminDashboard = () => {
 
   const handleInvestAction = async (id: string, action: "approved" | "rejected" | "pending") => {
     try {
-      const res = await fetch(`http://localhost:5000/api/investments/${id}/status`, {
+      const res = await fetch(`${API_URL}/api/investments/${id}/status`, {
+
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: action }),
@@ -151,7 +157,8 @@ const AdminDashboard = () => {
 
   const handleWithdrawAction = async (id: string, action: "approved" | "rejected") => {
     try {
-      const res = await fetch(`http://localhost:5000/api/withdrawals/${id}/status`, {
+      const res = await fetch(`${API_URL}/api/withdrawals/${id}/status`, {
+
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: action }),

@@ -51,7 +51,10 @@ const statusConfig: Record<string, { label: string; className: string }> = {
 
 type NavTab = "overview" | "investments" | "history" | "withdraw";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 const safeCurrency = (val: any) => {
+
   const num = typeof val === 'number' ? val : parseFloat(val);
   return isNaN(num) ? "0" : num.toLocaleString("en-IN");
 };
@@ -111,7 +114,8 @@ const UserDashboard = () => {
 
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/investments")
+    fetch(`${API_URL}/api/investments`)
+
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) setInvestments(data);
@@ -122,7 +126,8 @@ const UserDashboard = () => {
         setInvestments([]);
       });
 
-    fetch("http://localhost:5000/api/withdrawals")
+    fetch(`${API_URL}/api/withdrawals`)
+
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) setWithdrawals(data);
@@ -736,7 +741,7 @@ const UserDashboard = () => {
                         }
                         if (upiId.trim() !== "") {
                           try {
-                            const res = await fetch("http://localhost:5000/api/withdrawals", {
+                            const res = await fetch(`${API_URL}/api/withdrawals`, {
                               method: "POST",
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({
@@ -747,6 +752,7 @@ const UserDashboard = () => {
 
                               })
                             });
+
                             if (res.ok) {
                               const newW = await res.json();
                               setWithdrawals(prev => [newW, ...prev]);

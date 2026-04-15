@@ -18,6 +18,8 @@ interface Investment {
   type?: "saving" | "fixed";
 }
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 const statusConfig = {
   pending: { label: "Waiting for Approval", color: "bg-amber-50 text-amber-700 border-amber-200", icon: Clock },
   approved: { label: "Approved", color: "bg-accent text-accent-foreground border-accent-foreground/10", icon: CheckCircle },
@@ -33,7 +35,7 @@ const InvestPage = () => {
   const [pastInvestments, setPastInvestments] = useState<Investment[]>([]);
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/investments")
+    fetch(`${API_URL}/api/investments`)
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
@@ -72,7 +74,8 @@ const InvestPage = () => {
     const user = userStr ? JSON.parse(userStr) : { name: "Anonymous", email: "anon@example.com" };
 
     try {
-      const res = await fetch("http://localhost:5000/api/investments", {
+      const res = await fetch(`${API_URL}/api/investments`, {
+
         method: "POST",
         headers: {
           "Content-Type": "application/json"
