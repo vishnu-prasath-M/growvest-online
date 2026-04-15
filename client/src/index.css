@@ -1,0 +1,149 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&family=DM+Serif+Display:ital@0;1&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 42 20% 97%;
+    --foreground: 220 30% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 30% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 30% 10%;
+
+    --primary: 155 82% 18%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 142 65% 42%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 155 35% 94%;
+    --accent-foreground: 155 82% 18%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 22% 88%;
+    --input: 214 22% 88%;
+    --ring: 155 82% 18%;
+
+    --radius: 0.875rem;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 30% 10%;
+    --sidebar-primary: 155 82% 18%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 155 35% 94%;
+    --sidebar-accent-foreground: 155 82% 18%;
+    --sidebar-border: 214 22% 90%;
+    --sidebar-ring: 155 82% 18%;
+
+    --font-heading: 'DM Serif Display', serif;
+    --font-body: 'Inter', sans-serif;
+
+    --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+    --shadow-elevated: 0 8px 32px -4px rgba(10, 40, 20, 0.10), 0 2px 6px -2px rgba(10, 40, 20, 0.06);
+    --shadow-hover: 0 16px 48px -8px rgba(10, 40, 20, 0.14), 0 4px 12px -4px rgba(10, 40, 20, 0.08);
+  }
+
+  .dark {
+    --background: 220 26% 8%;
+    --foreground: 210 20% 96%;
+    --card: 220 26% 11%;
+    --card-foreground: 210 20% 96%;
+    --popover: 220 26% 11%;
+    --popover-foreground: 210 20% 96%;
+    --primary: 142 65% 42%;
+    --primary-foreground: 220 26% 8%;
+    --secondary: 155 82% 18%;
+    --secondary-foreground: 210 20% 96%;
+    --muted: 220 20% 15%;
+    --muted-foreground: 215 16% 58%;
+    --accent: 155 30% 13%;
+    --accent-foreground: 142 65% 42%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 210 20% 96%;
+    --border: 220 20% 18%;
+    --input: 220 20% 18%;
+    --ring: 142 65% 42%;
+    --sidebar-background: 220 26% 10%;
+    --sidebar-foreground: 210 20% 96%;
+    --sidebar-primary: 142 65% 42%;
+    --sidebar-primary-foreground: 220 26% 8%;
+    --sidebar-accent: 155 30% 13%;
+    --sidebar-accent-foreground: 142 65% 42%;
+    --sidebar-border: 220 20% 18%;
+    --sidebar-ring: 142 65% 42%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-body);
+    font-feature-settings: 'kern' 1, 'liga' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer utilities {
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+  .shadow-elevated {
+    box-shadow: var(--shadow-elevated);
+  }
+  .shadow-hover {
+    box-shadow: var(--shadow-hover);
+  }
+
+  .font-body {
+    font-family: var(--font-body);
+  }
+  .font-heading {
+    font-family: var(--font-heading);
+  }
+
+  /* Grain texture overlay */
+  .grain-overlay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    opacity: 0.035;
+    pointer-events: none;
+    z-index: 0;
+    border-radius: inherit;
+  }
+
+  .card-premium {
+    background: #ffffff;
+    border: 1px solid hsl(214 22% 88%);
+    border-radius: 1.5rem;
+    box-shadow: var(--shadow-card);
+    transition: box-shadow 0.3s ease, transform 0.3s ease, border-color 0.3s ease;
+  }
+
+  .card-premium:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-3px);
+    border-color: hsl(155 82% 18% / 0.15);
+  }
+}
