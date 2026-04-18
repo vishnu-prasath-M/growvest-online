@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+
 import {
   TrendingUp,
   Wallet,
@@ -11,8 +12,13 @@ import {
   CheckCircle,
   XCircle,
   Bell,
+  LogOut,
+  Menu,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -79,38 +85,103 @@ const UserDashboard = () => {
   const [withdrawDone, setWithdrawDone] = useState(false);
   const [showUpiInput, setShowUpiInput] = useState(false);
   const [upiId, setUpiId] = useState("");
+  const [withdrawType, setWithdrawType] = useState<"saving" | "fixed">("saving");
+  const [withdrawError, setWithdrawError] = useState("");
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [transactionsLoading, setTransactionsLoading] = useState(false);
+  const [userBalance, setUserBalance] = useState<number | null>(null);
+  const [savingBalance, setSavingBalance] = useState<number>(0);
+  const [fixedBalance, setFixedBalance] = useState<number>(0);
+  const [totalInvested, setTotalInvested] = useState<number>(0);
+  const [totalInterest, setTotalInterest] = useState<number>(0);
+  const [totalWithdrawn, setTotalWithdrawn] = useState<number>(0);
   const [dismissedPaidSuccess, setDismissedPaidSuccess] = useState(false);
-
+  const [showWithdrawSuccess, setShowWithdrawSuccess] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [userLoading, setUserLoading] = useState(true);
+  const [userError, setUserError] = useState("");
 
   const userStr = localStorage.getItem("user");
-  let user = { name: "User", email: "" };
+  const token = localStorage.getItem("token");
+  let localUser = { name: "", email: "" };
   try {
     if (userStr && userStr !== "null" && userStr !== "undefined") {
-      user = JSON.parse(userStr);
+      localUser = JSON.parse(userStr);
     }
   } catch (e) {
     console.error("Error parsing user from localStorage", e);
   }
 
+  // Verify user exists in DB
+  useEffect(() => {
+    if (!localUser.email || !token) {
+      setUserError("Please log in to continue");
+      setUserLoading(false);
+      return;
+    }
+
+    fetch(`${API_URL}/api/users/email/${localUser.email}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(res => {
+        if (res.status === 404) {
+          // User not found in DB - clear local storage
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+          setUserError("User not found. Please log in or sign up.");
+          throw new Error("User not found");
+        }
+        if (!res.ok) throw new Error("Failed to fetch user");
+        return res.json();
+      })
+      .then(data => {
+        if (data && data.email) {
+          setUser(data);
+          // Update localStorage with fresh data from DB
+          localStorage.setItem("user", JSON.stringify({
+            _id: data._id,
+            name: data.name,
+            email: data.email,
+            token: token
+          }));
+        } else {
+          setUserError("User not found. Please log in or sign up.");
+        }
+      })
+      .catch(err => {
+        console.error("Error verifying user:", err);
+        if (err.message === "User not found") {
+          setUserError("User not found. Please log in or sign up.");
+        } else {
+          setUserError("Failed to load user data. Please try again.");
+        }
+      })
+      .finally(() => {
+        setUserLoading(false);
+      });
+  }, []);
+
   const initials = user?.name ? String(user.name).charAt(0).toUpperCase() : "U";
   const userEmail = user?.email || "";
 
 
+  // Use backend-calculated values (no frontend calculations)
   const userWithdrawals = withdrawals.filter(w => w?.userEmail === userEmail);
-  const paidWithdrawals = userWithdrawals.filter(w => w?.status === 'approved');
+  const paidWithdrawals = userWithdrawals.filter(w => w?.status === 'approved' || w?.status === 'paid');
   const pendingWithdrawal = userWithdrawals.find(w => w?.status === 'pending');
 
-  
-  const withdrawnAmt = paidWithdrawals.reduce((acc, curr) => acc + (curr?.amount || 0), 0);
   const isPaidWithdrawal = paidWithdrawals.length > 0;
   const pendingData = pendingWithdrawal ? { ...pendingWithdrawal, amount: String(pendingWithdrawal?.amount || "0") } : null;
 
-  const totalInvested = investments.filter(i => i?.status === 'approved').reduce((acc, curr) => acc + (curr?.amount || 0), 0);
-  const totalEarnings = investments.filter(i => i?.status === 'approved').reduce((acc, curr) => acc + (curr?.totalInterest || 0), 0);
-  const currentBalance = (totalInvested || 0) + (totalEarnings || 0) - (withdrawnAmt || 0);
+  // Calculate pending amount only (from investments data)
   const pendingAmount = investments.filter(i => i?.status === 'pending').reduce((acc, curr) => acc + (curr?.amount || 0), 0);
+
+  // Total balance from backend (with safety check for negative)
+  const currentBalance = Math.max(0, userBalance || 0);
+  
+  const fixedInvestments = investments.filter(i => i?.type === 'fixed');
 
 
   useEffect(() => {
@@ -137,6 +208,26 @@ const UserDashboard = () => {
         console.error("Error fetching withdrawals:", err);
         setWithdrawals([]);
       });
+
+    // Fetch transactions
+    setTransactionsLoading(true);
+    fetch(`${API_URL}/api/transactions/user/${userEmail}`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setTransactions(data);
+          console.log('Transactions loaded:', data.length);
+        } else {
+          setTransactions([]);
+          console.log('No transactions data received');
+        }
+        setTransactionsLoading(false);
+      })
+      .catch(err => {
+        console.error("Error fetching transactions:", err);
+        setTransactions([]);
+        setTransactionsLoading(false);
+      });
   }, []);
 
   // Automatic dismissal for "Withdraw Successful" message
@@ -149,41 +240,91 @@ const UserDashboard = () => {
     }
   }, [isPaidWithdrawal, withdrawDone, dismissedPaidSuccess]);
 
-  const transactions = (investments || []).map(inv => {
+  // Refresh data when withdrawal status changes
+  useEffect(() => {
+    if (withdrawDone || isPaidWithdrawal) {
+      // Refresh all data to get updated balance
+      const refreshData = () => {
+        fetch(`${API_URL}/api/investments`)
+          .then(res => res.json())
+          .then(data => {
+            if (Array.isArray(data)) setInvestments(data);
+            else setInvestments([]);
+          })
+          .catch(err => {
+            console.error("Error refreshing investments:", err);
+            setInvestments([]);
+          });
 
-    if (!inv) return null;
-    return {
-      id: inv?.ref || "N/A",
-      date: safeDate(inv?.startDate),
-      type: "Investment",
-      amount: `+₹${safeCurrency(inv?.amount)}`,
-      status: (String(inv?.status || "")).charAt(0).toUpperCase() + (String(inv?.status || "")).slice(1)
+        fetch(`${API_URL}/api/withdrawals`)
+          .then(res => res.json())
+          .then(data => {
+            if (Array.isArray(data)) setWithdrawals(data);
+            else setWithdrawals([]);
+          })
+          .catch(err => {
+            console.error("Error refreshing withdrawals:", err);
+            setWithdrawals([]);
+          });
 
-    };
-  }).filter(Boolean) as any[];
+        refreshTransactions();
+      };
 
+      refreshData();
+    }
+  }, [withdrawDone, isPaidWithdrawal]);
 
-  if (pendingData) {
-    transactions.unshift({
-      id: "WD-REQ",
-      date: pendingData.date || safeDate(Date.now()),
-      type: "Withdrawal",
-      amount: `-₹${safeCurrency(pendingData.amount)}`,
-      status: "Pending"
+  // Fetch user balance from backend
+  useEffect(() => {
+    if (userEmail) {
+      fetch(`${API_URL}/api/users/email/${userEmail}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && typeof data.balance === 'number') {
+            setUserBalance(data.balance);
+            // Set all balance values from backend (with safety for negative)
+            setSavingBalance(Math.max(0, data.savingBalance || 0));
+            setFixedBalance(Math.max(0, data.fixedBalance || 0));
+            setTotalInvested(Math.max(0, data.totalInvested || 0));
+            setTotalInterest(Math.max(0, data.totalInterest || 0));
+            setTotalWithdrawn(Math.max(0, data.totalWithdrawn || 0));
+          }
+        })
+        .catch(err => {
+          console.error('Error fetching user balance:', err);
+        });
+    }
+  }, [userEmail, withdrawDone, isPaidWithdrawal]);
 
-    });
-  }
-  paidWithdrawals.forEach(w => {
-     transactions.unshift({
-      id: "WD-PAID",
-      date: w?.date || safeDate(Date.now()),
-      type: "Withdrawal",
-      amount: `-₹${safeCurrency(w?.amount)}`,
-      status: "Processed"
+  // Transform transactions from backend for display
+  const displayTransactions = transactions.map(t => ({
+    id: t._id || t.id || "N/A",
+    date: safeDate(t.createdAt),
+    type: t.type === 'investment' ? 'Investment' : 'Withdrawal',
+    amount: t.type === 'investment' ? `+₹${safeCurrency(t.amount)}` : `-₹${safeCurrency(t.amount)}`,
+    status: t.status === 'approved' ? 'Completed' : t.status === 'paid' ? 'Paid' : t.status === 'pending' ? 'Pending' : t.status === 'requested' ? 'Requested' : t.status === 'rejected' ? 'Rejected' : 'Unknown',
+    description: t.description || ''
+  }));
 
-    });
-  });
-
+  // Refresh transactions function
+  const refreshTransactions = () => {
+    setTransactionsLoading(true);
+    fetch(`${API_URL}/api/transactions/user/${userEmail}`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setTransactions(data);
+        } else {
+          setTransactions([]);
+        }
+        setTransactionsLoading(false);
+      })
+      .catch(err => {
+        console.error("Error refreshing transactions:", err);
+        setTransactions([]);
+        setTransactionsLoading(false);
+      });
+  };
 
   const activeTypes = Array.from(new Set(investments.filter(i => i?.status === 'approved').map(i => i?.type).filter(Boolean)));
 
@@ -196,7 +337,8 @@ const UserDashboard = () => {
     depositBadge = "Fixed Deposit";
     returnRate = "Fixed: 12% yearly";
   } else if (activeTypes.length > 1) {
-    depositBadge = "Saving & Fixed";
+    // When user has both types, don't show a combined badge
+    depositBadge = "";
     returnRate = "7-12% yearly";
   }
 
@@ -214,10 +356,8 @@ const UserDashboard = () => {
     },
     {
       label: "Total Earnings",
-      value: `₹${safeCurrency(Math.round(totalEarnings || 0))}`,
-
-
-      sub: `Est. Annual Return: ${returnRate}`,
+      value: `₹${safeCurrency(Math.round(totalInterest || 0))}`,
+      sub: `Combined interest earned`,
       positive: true,
       icon: TrendingUp,
       color: "bg-secondary/10",
@@ -247,55 +387,163 @@ const UserDashboard = () => {
     },
   ];
 
-  const handleWithdrawAction = async (id: string) => {
-    try {
-      const res = await fetch(`http://localhost:5000/api/investments/${id}/withdraw`, { method: 'POST' });
-      if (res.ok) {
-        setInvestments(prev => prev.filter(inv => inv._id !== id));
-        alert("Withdrawal successful. Funds will be credited to your account.");
-      } else {
-        const data = await res.json();
-        alert(data.message || "Failed to withdraw");
+  const checkWithdrawalEligibility = (investmentType: string, startDate: string) => {
+    if (investmentType === 'fixed') {
+      const lockedUntil = new Date(startDate);
+      lockedUntil.setFullYear(lockedUntil.getFullYear() + 1);
+      if (lockedUntil > new Date()) {
+        return {
+          eligible: false,
+          message: "Withdrawal is allowed only after 1 year for Fixed Deposit.",
+          unlockDate: lockedUntil.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+        };
       }
-    } catch (error) {
-      alert("Error processing withdrawal");
     }
+    return { eligible: true };
   };
+
+  const checkFixedDepositEligibility = () => {
+    if (fixedInvestments.length === 0) {
+      setWithdrawError("No Fixed Deposits found");
+      return false;
+    }
+
+    // Check if any fixed deposit is still locked
+    for (const investment of fixedInvestments) {
+      const eligibility = checkWithdrawalEligibility('fixed', investment.startDate);
+      if (!eligibility.eligible) {
+        setWithdrawError(`Withdrawal allowed only after 1 year. Available on: ${eligibility.unlockDate}`);
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const validateWithdrawalAmount = () => {
+    const amount = parseFloat(withdrawAmount);
+    
+    if (!withdrawAmount || isNaN(amount) || amount <= 0) {
+      setWithdrawError("Please enter a valid amount");
+      return false;
+    }
+
+    if (withdrawType === 'saving') {
+      if (amount > savingBalance) {
+        setWithdrawError("Insufficient balance in Saving Deposit");
+        return false;
+      }
+    } else if (withdrawType === 'fixed') {
+      if (!checkFixedDepositEligibility()) {
+        return false;
+      }
+      if (amount > fixedBalance) {
+        setWithdrawError("Insufficient balance in Fixed Deposit");
+        return false;
+      }
+    }
+
+    setWithdrawError("");
+    return true;
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+  };
+
+  // Show loading state while verifying user
+  if (userLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground font-body">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error if user not found or not authenticated
+  if (userError || !user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <div className="text-center max-w-sm">
+          <div className="h-16 w-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+            <span className="text-red-600 text-2xl">!</span>
+          </div>
+          <h2 className="font-heading text-xl text-foreground mb-2">{userError || "User not found"}</h2>
+          <p className="text-muted-foreground font-body mb-6">Please log in or create an account to continue.</p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => window.location.href = '/login'}
+              className="px-6 py-2 bg-primary text-white rounded-xl font-body font-medium hover:bg-primary/90 transition-colors"
+            >
+              Log In
+            </button>
+            <button
+              onClick={() => window.location.href = '/register'}
+              className="px-6 py-2 border border-border rounded-xl font-body font-medium hover:bg-accent transition-colors"
+            >
+              Sign Up
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 shrink-0 bg-card border-r border-border">
-        <div className="p-5 border-b border-border">
-          <ZenvestLogo />
-        </div>
+      {/* Mobile Menu Button */}
+      <button
+        onClick={() => {
+          const mobileMenu = document.getElementById('mobile-menu');
+          if (mobileMenu) {
+            mobileMenu.classList.toggle('translate-x-0');
+          }
+        }}
+        className="lg:hidden fixed top-4 left-4 z-50 p-3 rounded-xl bg-card border border-border shadow-lg"
+      >
+        <Menu className="h-5 w-5 text-foreground" />
+      </button>
 
-        {/* User pill */}
-        <div className="mx-4 mt-5 p-3 rounded-2xl bg-accent border border-border flex items-center gap-3">
-          <div className="h-9 w-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-heading font-bold text-sm">
-            {initials}
-          </div>
+      {/* Mobile Sidebar */}
+      <aside
+        id="mobile-menu"
+        className="fixed inset-y-0 left-0 z-40 w-64 bg-card border-r border-border transform -translate-x-full transition-transform duration-300 lg:hidden"
+      >
+        <div className="p-5 border-b border-border flex items-center justify-between">
           <div>
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-body font-semibold text-foreground truncate max-w-[120px]">{user?.name || "User"}</p>
-              <span className="text-[10px] bg-secondary/10 text-secondary border border-secondary/20 px-1.5 py-0.5 rounded-full whitespace-nowrap">
-                {depositBadge}
-              </span>
-            </div>
-            <p className="text-xs font-body text-muted-foreground truncate w-36">{userEmail}</p>
-
+            <ZenvestLogo size="sm" />
+            <p className="text-xs font-body text-muted-foreground mt-1">User Dashboard</p>
           </div>
+          <button
+            onClick={() => {
+              const mobileMenu = document.getElementById('mobile-menu');
+              if (mobileMenu) {
+                mobileMenu.classList.add('-translate-x-full');
+              }
+            }}
+            className="p-2 rounded-lg hover:bg-accent transition-colors"
+          >
+            <X className="h-4 w-4 text-foreground" />
+          </button>
         </div>
-
-        <nav className="flex-1 p-3 space-y-1 mt-3">
+        <nav className="flex-1 p-4 space-y-2">
           {navItems.map((item) => (
             <button
               key={item.tab}
-              onClick={() => setActiveTab(item.tab)}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-body font-medium transition-colors ${
+              onClick={() => {
+                setActiveTab(item.tab);
+                const mobileMenu = document.getElementById('mobile-menu');
+                if (mobileMenu) {
+                  mobileMenu.classList.add('-translate-x-full');
+                }
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-body font-medium transition-colors" ${
                 activeTab === item.tab
                   ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
               }`}
             >
               {item.tab === "overview" && <Wallet className="h-4 w-4" />}
@@ -306,13 +554,59 @@ const UserDashboard = () => {
             </button>
           ))}
         </nav>
-
         <div className="p-4 border-t border-border">
-          <Link to="/">
-            <Button variant="outline" size="sm" className="w-full rounded-xl font-body">
-              Back to Site
-            </Button>
-          </Link>
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-body font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+          >
+            <LogOut className="h-4 w-4" />
+            Logout
+          </button>
+        </div>
+      </aside>
+
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:flex flex-col w-64 shrink-0 bg-card border-r border-border">
+        <div className="p-5 border-b border-border">
+          <ZenvestLogo />
+        </div>
+        {/* User pill */}
+        <div className="mx-4 mt-5 p-3 rounded-2xl bg-accent border border-border flex items-center gap-3">
+          <div className="h-9 w-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-heading font-bold text-sm">
+            {initials}
+          </div>
+          <div>
+            <p className="text-sm font-body font-medium text-foreground">{user?.name || "User"}</p>
+            <p className="text-xs font-body text-muted-foreground">{user?.email || "user@example.com"}</p>
+          </div>
+        </div>
+        <nav className="flex-1 p-4 space-y-2">
+          {navItems.map((item) => (
+            <button
+              key={item.tab}
+              onClick={() => setActiveTab(item.tab)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-body font-medium transition-colors" ${
+                activeTab === item.tab
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
+              }`}
+            >
+              {item.tab === "overview" && <Wallet className="h-4 w-4" />}
+              {item.tab === "investments" && <TrendingUp className="h-4 w-4" />}
+              {item.tab === "history" && <Clock className="h-4 w-4" />}
+              {item.tab === "withdraw" && <ArrowDownToLine className="h-4 w-4" />}
+              {item.label}
+            </button>
+          ))}
+        </nav>
+        <div className="p-4 border-t border-border">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-body font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+          >
+            <LogOut className="h-4 w-4" />
+            Logout
+          </button>
         </div>
       </aside>
 
@@ -324,16 +618,26 @@ const UserDashboard = () => {
             <p className="text-xs font-body text-muted-foreground">Good morning</p>
             <h1 className="font-heading text-lg text-foreground font-bold leading-tight flex items-center gap-2">
               {user?.name || "User"}
-
-              <span className="text-[10px] bg-secondary/10 text-secondary border border-secondary/20 px-2 py-0.5 rounded-full whitespace-nowrap">
-                {depositBadge}
-              </span>
+              {depositBadge && (
+                <span className="text-[10px] bg-secondary/10 text-secondary border border-secondary/20 px-2 py-0.5 rounded-full whitespace-nowrap">
+                  {depositBadge}
+                </span>
+              )}
             </h1>
           </div>
           <div className="flex items-center gap-3">
             <button className="h-9 w-9 rounded-xl border border-border bg-card flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
               <Bell className="h-4 w-4" />
             </button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="rounded-xl font-body"
+              onClick={handleLogout}
+            >
+              <LogOut className="mr-1.5 h-3.5 w-3.5" />
+              Logout
+            </Button>
             <Link to="/invest">
               <Button size="sm" className="rounded-xl font-body font-medium group">
                 <PlusCircle className="mr-1.5 h-3.5 w-3.5" />
@@ -345,12 +649,12 @@ const UserDashboard = () => {
         </header>
 
         {/* Tab: mobile nav */}
-        <div className="lg:hidden flex items-center gap-1 px-4 pt-4 pb-0 overflow-x-auto">
+        <div className="lg:hidden flex items-center gap-1 px-4 pt-4 pb-2 overflow-x-auto">
           {navItems.map((item) => (
             <button
               key={item.tab}
               onClick={() => setActiveTab(item.tab)}
-              className={`px-4 py-2 rounded-xl text-sm font-body font-medium whitespace-nowrap transition-colors ${
+              className={`px-3 py-2.5 rounded-xl text-sm font-body font-medium whitespace-nowrap transition-colors" ${
                 activeTab === item.tab
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -361,7 +665,7 @@ const UserDashboard = () => {
           ))}
         </div>
 
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-4 sm:p-6 lg:pl-8 pt-20 lg:pt-6">
           {/* ── OVERVIEW ── */}
           {activeTab === "overview" && (
             <motion.div
@@ -370,7 +674,7 @@ const UserDashboard = () => {
               transition={{ duration: 0.4 }}
             >
               {/* Stat cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
                 {overviewCards.map((c, i) => {
                   const Icon = c.icon;
                   return (
@@ -379,17 +683,17 @@ const UserDashboard = () => {
                       initial={{ opacity: 0, y: 16 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.07 }}
-                      className="card-premium p-5"
+                      className="card-premium p-4 sm:p-5"
                     >
                       <div className="flex items-start justify-between mb-3">
                         <span className="text-xs font-body text-muted-foreground leading-tight">
                           {c.label}
                         </span>
-                        <div className={`h-8 w-8 rounded-xl ${c.color} flex items-center justify-center`}>
-                          <Icon className={`h-4 w-4 ${c.iconColor}`} />
+                        <div className={`h-7 w-7 sm:h-8 sm:w-8 rounded-xl ${c.color} flex items-center justify-center`}>
+                          <Icon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${c.iconColor}`} />
                         </div>
                       </div>
-                      <p className="text-xl font-heading font-bold text-foreground">{c.value}</p>
+                      <p className="text-lg sm:text-xl font-heading font-bold text-foreground">{c.value}</p>
                       <p
                         className={`text-xs font-body mt-1 ${
                           c.positive === true ? "text-secondary" : "text-muted-foreground"
@@ -403,9 +707,9 @@ const UserDashboard = () => {
               </div>
 
               {/* Quick actions */}
-              <div className="flex flex-wrap gap-3 mb-6">
-                <Link to="/invest">
-                  <Button className="rounded-xl font-body font-medium h-11 group">
+              <div className="flex flex-col sm:flex-wrap sm:flex-row gap-3 mb-6">
+                <Link to="/invest" className="flex-1 sm:flex-none">
+                  <Button className="w-full rounded-xl font-body font-medium h-12 sm:h-11 group">
                     <PlusCircle className="mr-2 h-4 w-4" />
                     New Investment
                     <ArrowRight className="ml-1.5 h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -413,7 +717,7 @@ const UserDashboard = () => {
                 </Link>
                 <Button
                   variant="outline"
-                  className="rounded-xl font-body font-medium h-11"
+                  className="w-full rounded-xl font-body font-medium h-12 sm:h-11"
                   onClick={() => setActiveTab("withdraw")}
                 >
                   <ArrowDownToLine className="mr-2 h-4 w-4" />
@@ -421,54 +725,125 @@ const UserDashboard = () => {
                 </Button>
               </div>
 
-              {/* Recent investments summary */}
-              <div className="card-premium overflow-hidden">
-                <div className="px-6 py-4 border-b border-border flex items-center justify-between">
-                  <h2 className="font-heading font-semibold text-foreground">Recent Investments</h2>
-                  <button
-                    onClick={() => setActiveTab("investments")}
-                    className="text-xs font-body text-primary hover:underline"
-                  >
-                    View all
-                  </button>
-                </div>
-                <div className="divide-y divide-border">
-                  {investments.slice(0, 3).map((inv) => {
-                    const status = inv?.status || "pending";
-                    const cfg = statusConfig[status] || { label: status, className: "bg-muted text-muted-foreground" };
-                    return (
-                      <div key={inv?._id || Math.random()} className="px-6 py-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`h-8 w-8 rounded-xl flex items-center justify-center ${
-                              status === "approved"
-                                ? "bg-accent"
-                                : status === "pending"
-                                ? "bg-amber-50"
-                                : "bg-red-50"
-                            }`}
-                          >
-                            {status === "approved" && <CheckCircle className="h-4 w-4 text-secondary" />}
-                            {status === "pending" && <Clock className="h-4 w-4 text-amber-600" />}
-                            {status === "rejected" && <XCircle className="h-4 w-4 text-red-500" />}
-                          </div>
-                          <div>
-                            <p className="text-sm font-body font-medium text-foreground">{inv?.ref || "REF-ERROR"}</p>
-                            <p className="text-xs font-body text-muted-foreground">{safeDate(inv?.startDate)}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-body font-semibold text-foreground">₹{safeCurrency(inv?.amount)}</p>
-
-                          <span className={`text-[10px] font-body font-medium px-2 py-0.5 rounded-full ${cfg.className}`}>
-                            {cfg.label}
-                          </span>
-                        </div>
+              {/* Recent investments summary - Separated by type */}
+              <div className="space-y-6">
+                {/* Saving Deposits Section */}
+                {(() => {
+                  const savingDeposits = investments.filter(inv => inv?.type === 'saving').slice(0, 3);
+                  if (savingDeposits.length === 0) return null;
+                  return (
+                    <div className="card-premium overflow-hidden">
+                      <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-border flex items-center justify-between">
+                        <h2 className="font-heading font-semibold text-foreground text-base sm:text-lg">Saving Deposits</h2>
+                        <button
+                          onClick={() => setActiveTab("investments")}
+                          className="text-xs font-body text-primary hover:underline"
+                        >
+                          View all
+                        </button>
                       </div>
-                    );
-                  })}
+                      <div className="divide-y divide-border">
+                        {savingDeposits.map((inv) => {
+                          const status = inv?.status || "pending";
+                          const cfg = statusConfig[status] || { label: status, className: "bg-muted text-muted-foreground" };
+                          return (
+                            <div key={inv?._id || Math.random()} className="px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className={`h-7 w-7 sm:h-8 sm:w-8 rounded-xl flex items-center justify-center ${
+                                    status === "approved"
+                                      ? "bg-accent"
+                                      : status === "pending"
+                                      ? "bg-amber-50"
+                                      : "bg-red-50"
+                                  }`}
+                                >
+                                  {status === "approved" && <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-secondary" />}
+                                  {status === "pending" && <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-600" />}
+                                  {status === "rejected" && <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-red-500" />}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-body font-medium text-foreground truncate">{inv?.ref || "REF-ERROR"}</p>
+                                  <p className="text-xs font-body text-muted-foreground">{safeDate(inv?.startDate)}</p>
+                                </div>
+                              </div>
+                              <div className="text-right ml-2">
+                                <p className="text-sm font-body font-semibold text-foreground">₹{safeCurrency(inv?.amount)}</p>
+                                <p className="text-xs font-body text-secondary">Interest: ₹{safeCurrency(Math.round(inv?.totalInterest || 0))}</p>
+                                <p className="text-xs font-body text-muted-foreground">7% yearly</p>
+                                <span className={`text-[10px] font-body font-medium px-2 py-0.5 rounded-full ${cfg.className}`}>
+                                  {cfg.label}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
 
-                </div>
+                {/* Fixed Deposits Section */}
+                {(() => {
+                  const fixedDeposits = investments.filter(inv => inv?.type === 'fixed').slice(0, 3);
+                  if (fixedDeposits.length === 0) return null;
+                  return (
+                    <div className="card-premium overflow-hidden">
+                      <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-border flex items-center justify-between">
+                        <h2 className="font-heading font-semibold text-foreground text-base sm:text-lg">Fixed Deposits</h2>
+                        <button
+                          onClick={() => setActiveTab("investments")}
+                          className="text-xs font-body text-primary hover:underline"
+                        >
+                          View all
+                        </button>
+                      </div>
+                      <div className="divide-y divide-border">
+                        {fixedDeposits.map((inv) => {
+                          const status = inv?.status || "pending";
+                          const cfg = statusConfig[status] || { label: status, className: "bg-muted text-muted-foreground" };
+                          const lockedUntil = new Date(inv?.startDate || Date.now());
+                          lockedUntil.setFullYear(lockedUntil.getFullYear() + 1);
+                          const isLocked = lockedUntil > new Date();
+                          return (
+                            <div key={inv?._id || Math.random()} className="px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className={`h-7 w-7 sm:h-8 sm:w-8 rounded-xl flex items-center justify-center ${
+                                    status === "approved"
+                                      ? "bg-accent"
+                                      : status === "pending"
+                                      ? "bg-amber-50"
+                                      : "bg-red-50"
+                                  }`}
+                                >
+                                  {status === "approved" && <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-secondary" />}
+                                  {status === "pending" && <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-600" />}
+                                  {status === "rejected" && <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-red-500" />}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-body font-medium text-foreground truncate">{inv?.ref || "REF-ERROR"}</p>
+                                  <p className="text-xs font-body text-muted-foreground">{safeDate(inv?.startDate)}</p>
+                                </div>
+                              </div>
+                              <div className="text-right ml-2">
+                                <p className="text-sm font-body font-semibold text-foreground">₹{safeCurrency(inv?.amount)}</p>
+                                <p className="text-xs font-body text-secondary">Interest: ₹{safeCurrency(Math.round(inv?.totalInterest || 0))}</p>
+                                <p className="text-xs font-body text-muted-foreground">12% yearly</p>
+                                <p className="text-xs font-body text-muted-foreground">
+                                  {isLocked ? `Locked until ${safeDate(lockedUntil)}` : "Unlocked"}
+                                </p>
+                                <span className={`text-[10px] font-body font-medium px-2 py-0.5 rounded-full ${cfg.className}`}>
+                                  {cfg.label}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </motion.div>
           )}
@@ -505,7 +880,6 @@ const UserDashboard = () => {
                       <TableHead className="font-body font-semibold">Amount</TableHead>
                       <TableHead className="font-body font-semibold">Returns</TableHead>
                       <TableHead className="font-body font-semibold">Status</TableHead>
-                      <TableHead className="font-body font-semibold">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -535,22 +909,6 @@ const UserDashboard = () => {
                               {cfg.label}
                             </span>
                           </TableCell>
-                          <TableCell>
-                            {isPaidWithdrawal ? (
-                              <span className="text-[10px] font-body font-bold text-green-600 px-2.5 py-1 bg-green-50 rounded-md border border-green-200">
-                                Payment Received
-                              </span>
-                            ) : (
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
-                                disabled={status !== 'approved' || isLocked}
-                                onClick={() => setActiveTab("withdraw")}
-                              >
-                                Withdraw
-                              </Button>
-                            )}
-                          </TableCell>
                         </TableRow>
                       );
                     })}
@@ -568,11 +926,22 @@ const UserDashboard = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
             >
-              <div className="mb-6">
-                <h2 className="font-heading text-2xl text-foreground">Transaction History</h2>
-                <p className="text-sm font-body text-muted-foreground mt-0.5">
-                  Complete record of all your transactions
-                </p>
+              <div className="mb-6 flex items-center justify-between">
+                <div>
+                  <h2 className="font-heading text-2xl text-foreground">Transaction History</h2>
+                  <p className="text-sm font-body text-muted-foreground mt-0.5">
+                    Complete record of all your transactions
+                  </p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={refreshTransactions}
+                  disabled={transactionsLoading}
+                  className="rounded-xl font-body"
+                >
+                  {transactionsLoading ? "Refreshing..." : "Refresh"}
+                </Button>
               </div>
               <div className="card-premium overflow-hidden">
                 <Table>
@@ -586,7 +955,23 @@ const UserDashboard = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {transactions.map((t) => {
+                    {transactionsLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8">
+                          <div className="flex items-center justify-center">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
+                            <span className="text-sm font-body text-muted-foreground">Loading transactions...</span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : displayTransactions.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8">
+                          <p className="text-sm font-body text-muted-foreground">No transactions found</p>
+                          <p className="text-xs font-body text-muted-foreground mt-1">Your transaction history will appear here</p>
+                        </TableCell>
+                      </TableRow>
+                    ) : displayTransactions.map((t) => {
                       const status = t?.status || "Pending";
                       const cfg = statusConfig[status] || { label: status, className: "bg-muted text-muted-foreground" };
                       return (
@@ -631,6 +1016,23 @@ const UserDashboard = () => {
                 </p>
               </div>
 
+              {/* Pending Withdrawal Message */}
+              {pendingData && !withdrawDone && !showWithdrawSuccess && (
+                <div className="card-premium p-4 mb-6 bg-amber-50 border-amber-200">
+                  <div className="flex items-center gap-3">
+                    <Clock className="h-5 w-5 text-amber-600" />
+                    <div>
+                      <p className="text-sm font-body font-semibold text-amber-800">
+                        Withdrawal Requested: ₹{safeCurrency(pendingData.amount)}
+                      </p>
+                      <p className="text-xs font-body text-amber-600 mt-0.5">
+                        Your request is being processed by the admin team.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {isPaidWithdrawal && !withdrawDone && !dismissedPaidSuccess ? (
 
                 <div className="card-premium p-8 text-center animate-in zoom-in fade-in">
@@ -647,6 +1049,23 @@ const UserDashboard = () => {
                     variant="outline"
                   >
                     Close
+                  </Button>
+                </div>
+              ) : showWithdrawSuccess ? (
+                <div className="card-premium p-8 text-center animate-in zoom-in fade-in">
+                  <div className="h-14 w-14 rounded-full bg-accent border-2 border-secondary/30 flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle className="h-7 w-7 text-secondary" />
+                  </div>
+                  <h3 className="font-heading text-xl text-foreground mb-2">Withdrawal Request Sent Successfully</h3>
+                  <p className="text-sm font-body text-muted-foreground mb-6">
+                    Money will be credited within 12 hours.
+                  </p>
+                  <Button
+                    onClick={() => { setShowWithdrawSuccess(false); setWithdrawAmount(""); setShowUpiInput(false); setUpiId(""); }}
+                    variant="outline"
+                    className="rounded-xl font-body"
+                  >
+                    Back to Withdraw
                   </Button>
                 </div>
               ) : withdrawDone ? (
@@ -669,33 +1088,91 @@ const UserDashboard = () => {
                 </div>
               ) : (
                 <div className="card-premium p-7 space-y-5">
-                  {/* Balance info */}
-                  <div className="rounded-2xl bg-accent border border-border p-5">
-                    <p className="text-xs font-body text-muted-foreground mb-1">Available Balance</p>
-                    <p className="text-3xl font-heading font-bold text-foreground">₹{safeCurrency(Math.round(currentBalance || 0))}</p>
+                  {/* Separate Balance Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Saving Balance Card */}
+                    <div className="rounded-2xl bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 p-5">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-body text-green-700 font-medium">Saving Deposit Balance</p>
+                        <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                      </div>
+                      <p className="text-2xl font-heading font-bold text-green-800">₹{safeCurrency(Math.round(savingBalance || 0))}</p>
+                      <p className="text-xs font-body text-green-600 mt-1">Withdraw anytime</p>
+                      <Button
+                        onClick={() => {
+                          setWithdrawType("saving");
+                          setWithdrawError("");
+                        }}
+                        variant={withdrawType === "saving" ? "default" : "outline"}
+                        className={`w-full mt-3 rounded-xl font-body h-10 ${
+                          withdrawType === "saving" ? "bg-green-600 hover:bg-green-700 text-white" : "border-green-300 text-green-700 hover:bg-green-50"
+                        }`}
+                      >
+                        Withdraw from Saving
+                      </Button>
+                    </div>
 
-
-
-                    <p className="text-xs font-body text-muted-foreground mt-1">Includes returns credited to date</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-body font-medium text-foreground">
-                      Withdrawal Amount (₹)
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-heading font-bold text-muted-foreground">
-                        ₹
-                      </span>
-                      <input
-                        type="number"
-                        placeholder="Enter amount"
-                        value={withdrawAmount}
-                        onChange={(e) => setWithdrawAmount(e.target.value)}
-                        className="w-full pl-8 h-13 text-lg font-heading font-bold rounded-xl border border-border bg-background px-4 focus:outline-none focus:border-primary transition-colors"
-                      />
+                    {/* Fixed Balance Card */}
+                    <div className="rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 p-5">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-body text-blue-700 font-medium">Fixed Deposit Balance</p>
+                        <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+                      </div>
+                      <p className="text-2xl font-heading font-bold text-blue-800">₹{safeCurrency(Math.round(fixedBalance || 0))}</p>
+                      <p className="text-xs font-body text-blue-600 mt-1">1 year lock period</p>
+                      <Button
+                        onClick={() => {
+                          setWithdrawType("fixed");
+                          setWithdrawError("");
+                          checkFixedDepositEligibility();
+                        }}
+                        variant="outline"
+                        disabled={fixedInvestments.length === 0}
+                        className="w-full mt-3 rounded-xl font-body h-10 border-blue-300 text-blue-700 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Withdraw from Fixed
+                      </Button>
                     </div>
                   </div>
+
+                  {/* Withdrawal Error Message */}
+                  {withdrawError && (
+                    <div className="rounded-xl bg-red-50 border border-red-200 p-4">
+                      <div className="flex items-center gap-3">
+                        <XCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+                        <div>
+                          <p className="text-sm font-body font-medium text-red-800">{withdrawError}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Withdrawal Form */}
+                  {withdrawType && (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-body font-medium text-foreground">
+                          Withdrawal Amount (₹)
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-heading font-bold text-muted-foreground">
+                            ₹
+                          </span>
+                          <input
+                            type="number"
+                            placeholder="Enter amount"
+                            value={withdrawAmount}
+                            onChange={(e) => {
+                              setWithdrawAmount(e.target.value);
+                              setWithdrawError("");
+                            }}
+                            className="w-full pl-8 h-13 text-lg font-heading font-bold rounded-xl border border-border bg-background px-4 focus:outline-none focus:border-primary transition-colors"
+                          />
+                        </div>
+                        <p className="text-xs font-body text-muted-foreground mt-1">
+                          Available: ₹{safeCurrency(Math.round(withdrawType === 'saving' ? savingBalance : fixedBalance))}
+                        </p>
+                      </div>
 
                   <div className="rounded-2xl bg-amber-50 border border-amber-200 p-4 flex items-start gap-3">
                     <Clock className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
@@ -722,7 +1199,7 @@ const UserDashboard = () => {
                   {!showUpiInput ? (
                     <Button
                       onClick={() => {
-                        if (withdrawAmount && parseInt(withdrawAmount) > 0) {
+                        if (validateWithdrawalAmount()) {
                           setShowUpiInput(true);
                         }
                       }}
@@ -735,8 +1212,7 @@ const UserDashboard = () => {
                   ) : (
                     <Button
                       onClick={async () => {
-                        if (!withdrawAmount || parseFloat(withdrawAmount) <= 0) {
-                          alert("Please enter a valid amount greater than 0");
+                        if (!validateWithdrawalAmount()) {
                           return;
                         }
                         if (upiId.trim() !== "") {
@@ -748,15 +1224,21 @@ const UserDashboard = () => {
                                 amount: parseFloat(withdrawAmount),
                                 upiId: upiId,
                                 userName: user?.name || "User",
-                                userEmail: userEmail
-
+                                userEmail: userEmail,
+                                withdrawType: withdrawType
                               })
                             });
 
                             if (res.ok) {
                               const newW = await res.json();
                               setWithdrawals(prev => [newW, ...prev]);
-                              setWithdrawDone(true);
+                              setShowWithdrawSuccess(true);
+                              setTimeout(() => {
+                                setShowWithdrawSuccess(false);
+                                setWithdrawAmount("");
+                                setShowUpiInput(false);
+                                setUpiId("");
+                              }, 3000);
                             } else {
                               const errorData = await res.json();
                               alert(errorData.message || "Failed to submit withdrawal request");
@@ -778,12 +1260,14 @@ const UserDashboard = () => {
                   )}
                 </div>
               )}
-            </motion.div>
+            </div>
           )}
-        </main>
-      </div>
-    </div>
-  );
+        </motion.div>
+      )}
+    </main>
+  </div>
+</div>
+);
 };
 
 export default UserDashboard;

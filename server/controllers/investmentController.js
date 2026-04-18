@@ -1,5 +1,6 @@
 const Investment = require('../models/Investment');
 const User = require('../models/User');
+const Transaction = require('../models/Transaction');
 
 exports.createInvestment = async (req, res) => {
   try {
@@ -19,6 +20,23 @@ exports.createInvestment = async (req, res) => {
     });
 
     await newInvestment.save();
+
+    // Create transaction record
+    const user = await User.findOne({ email: userEmail });
+    if (user) {
+      const transaction = new Transaction({
+        userId: user._id,
+        userEmail,
+        type: 'investment',
+        amount,
+        status: 'pending',
+        referenceId: newInvestment._id,
+        referenceType: 'Investment',
+        description: `Investment in ${type} deposit - ₹${amount}`
+      });
+      await transaction.save();
+    }
+
     res.status(201).json(newInvestment);
   } catch (error) {
     res.status(500).json({ message: 'Error creating investment', error: error.message });
@@ -57,10 +75,10 @@ exports.getInvestments = async (req, res) => {
       const now = new Date();
       const diffTime = Math.abs(now - inv.startDate);
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      const monthsSinceStart = Math.max(0, diffDays / 30);
-
-      const monthlyInterest = (inv.amount * inv.interestRate) / 100 / 12;
-      const totalInterest = monthlyInterest * monthsSinceStart;
+      
+      // Daily interest calculation
+      const dailyInterest = (inv.amount * inv.interestRate) / 100 / 365;
+      const totalInterest = dailyInterest * diffDays;
 
       return {
         ...inv.toObject(),
@@ -82,12 +100,35 @@ exports.updateInvestmentStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
-    const investment = await Investment.findByIdAndUpdate(id, { status }, { new: true });
+    const investment = await Investment.findById(id);
     if (!investment) {
       return res.status(404).json({ message: 'Investment not found' });
     }
 
-    res.status(200).json(investment);
+    const updatedInvestment = await Investment.findByIdAndUpdate(id, { status }, { new: true });
+    
+    // Update transaction record
+    if (status === 'approved' && investment.status !== 'approved') {
+      const user = await User.findOne({ email: investment.userEmail });
+      if (user) {
+        // Add to user balance
+        user.balance += investment.amount;
+        await user.save();
+
+        // Update transaction record
+        await Transaction.findOneAndUpdate(
+          { referenceId: investment._id, referenceType: 'Investment' },
+          { 
+            status: 'approved',
+            updatedAt: new Date(),
+            description: `Investment approved - ₹${investment.amount}`
+          },
+          { new: true }
+        );
+      }
+    }
+
+    res.status(200).json(updatedInvestment);
   } catch (error) {
     res.status(500).json({ message: 'Error updating investment', error: error.message });
   }

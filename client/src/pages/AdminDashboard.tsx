@@ -13,9 +13,12 @@ import {
   X,
   TrendingUp,
   AlertCircle,
+  Settings,
 } from "lucide-react";
 import ZenvestLogo from "@/components/ZenvestLogo";
 import { Button } from "@/components/ui/button";
+import { generateUPILink } from "@/utils/upi";
+import { QRCodeSVG } from "qrcode.react";
 import {
   Table,
   TableBody,
@@ -67,13 +70,14 @@ const statusStyle: Record<string, string> = {
   New: "bg-blue-50 text-blue-600 border-blue-200",
 };
 
-type AdminTab = "overview" | "pending" | "users" | "withdrawals";
+type AdminTab = "overview" | "pending" | "users" | "withdrawals" | "settings";
 
 const navItems: { label: string; tab: AdminTab; icon: React.ElementType; badge?: number }[] = [
   { label: "Overview", tab: "overview", icon: LayoutDashboard },
   { label: "Pending Investments", tab: "pending", icon: Clock, badge: 3 },
   { label: "Users", tab: "users", icon: Users },
   { label: "Withdrawals", tab: "withdrawals", icon: ArrowDownToLine, badge: 2 },
+  { label: "Settings", tab: "settings", icon: Settings },
 ];
 
 /* ─── Component ─────────────────────────────────── */
@@ -94,6 +98,7 @@ const AdminDashboard = () => {
             id: w?._id || "unknown",
             user: w?.userName || "Unknown",
             amount: `₹${(w?.amount || 0).toLocaleString("en-IN")}`,
+            rawAmount: w?.amount || 0,
             date: w?.date || "",
             status: w?.status || "pending",
             upi: w?.upiId || ""
@@ -317,7 +322,7 @@ const AdminDashboard = () => {
           )}
         </header>
 
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-4 sm:p-6">
           {/* ── OVERVIEW ── */}
           {activeTab === "overview" && (
             <motion.div
@@ -325,7 +330,7 @@ const AdminDashboard = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
             >
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
                 {overviewCards.map((c, i) => {
                   const Icon = c.icon;
                   return (
@@ -334,15 +339,15 @@ const AdminDashboard = () => {
                       initial={{ opacity: 0, y: 14 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.07 }}
-                      className="card-premium p-5"
+                      className="card-premium p-4 sm:p-5"
                     >
                       <div className="flex items-start justify-between mb-3">
                         <span className="text-xs font-body text-muted-foreground leading-tight">{c.label}</span>
-                        <div className={`h-8 w-8 rounded-xl ${c.color} flex items-center justify-center`}>
-                          <Icon className={`h-4 w-4 ${c.iconColor}`} />
+                        <div className={`h-7 w-7 sm:h-8 sm:w-8 rounded-xl ${c.color} flex items-center justify-center`}>
+                          <Icon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${c.iconColor}`} />
                         </div>
                       </div>
-                      <p className="text-2xl font-heading font-bold text-foreground">{c.value}</p>
+                      <p className="text-xl sm:text-2xl font-heading font-bold text-foreground">{c.value}</p>
                       <p className="text-xs font-body text-muted-foreground mt-1">{c.sub}</p>
                     </motion.div>
                   );
@@ -351,46 +356,46 @@ const AdminDashboard = () => {
 
               {/* Pending actions alert */}
               {pendingCount > 0 && (
-                <div
-                  className="rounded-2xl border border-amber-200 bg-amber-50 p-5 mb-6 flex items-center justify-between cursor-pointer hover:bg-amber-100 transition-colors"
-                  onClick={() => setActiveTab("pending")}
-                >
-                  <div className="flex items-center gap-3">
-                    <AlertCircle className="h-5 w-5 text-amber-600" />
-                    <div>
-                      <p className="text-sm font-body font-semibold text-amber-800">
-                        {pendingCount} investment{pendingCount > 1 ? "s" : ""} awaiting your approval
-                      </p>
-                      <p className="text-xs font-body text-amber-600 mt-0.5">
-                        Click to review and approve or reject
-                      </p>
+                  <div
+                    className="rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:p-5 mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:bg-amber-100 transition-colors"
+                    onClick={() => setActiveTab("pending")}
+                  >
+                    <div className="flex items-center gap-3">
+                      <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-body font-semibold text-amber-800">
+                          {pendingCount} investment{pendingCount > 1 ? "s" : ""} awaiting your approval
+                        </p>
+                        <p className="text-xs font-body text-amber-600 mt-0.5">
+                          Click to review and approve or reject
+                        </p>
+                      </div>
                     </div>
+                    <Button size="sm" className="rounded-xl font-body bg-amber-600 hover:bg-amber-700 w-full sm:w-auto">
+                      Review Now
+                    </Button>
                   </div>
-                  <Button size="sm" className="rounded-xl font-body bg-amber-600 hover:bg-amber-700">
-                    Review Now
-                  </Button>
-                </div>
               )}
 
               {/* Recent activity */}
               <div className="card-premium overflow-hidden">
-                <div className="px-6 py-4 border-b border-border">
-                  <h2 className="font-heading font-semibold text-foreground">Recent Investments</h2>
+                <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-border">
+                  <h2 className="font-heading font-semibold text-foreground text-base sm:text-lg">Recent Investments</h2>
                 </div>
                 <div className="divide-y divide-border">
                   {pendingList.slice(0, 5).map((inv) => (
-                    <div key={inv._id} className="px-6 py-4 flex items-center justify-between">
+                    <div key={inv._id} className="px-4 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
                         <div
-                          className={`h-9 w-9 rounded-xl flex items-center justify-center ${
+                          className={`h-8 w-8 sm:h-9 sm:w-9 rounded-xl flex items-center justify-center ${
                             inv.status === "approved" ? "bg-accent" : inv.status === "pending" ? "bg-amber-50" : "bg-red-50"
                           }`}
                         >
-                          {inv.status === "approved" && <CheckCircle className="h-4 w-4 text-secondary" />}
-                          {inv.status === "pending" && <Clock className="h-4 w-4 text-amber-600" />}
-                          {inv.status === "rejected" && <XCircle className="h-4 w-4 text-red-500" />}
+                          {inv.status === "approved" && <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-secondary" />}
+                          {inv.status === "pending" && <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />}
+                          {inv.status === "rejected" && <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-500" />}
                         </div>
-                        <div>
+                        <div className="min-w-0 flex-1">
                           <p className="text-sm font-body font-semibold text-foreground">{inv.user} <span className="opacity-50 font-normal">({inv.type} deposit)</span></p>
                           <p className="text-xs font-body text-muted-foreground">{inv.ref} · {new Date(inv.startDate).toLocaleDateString()}</p>
                         </div>
@@ -671,7 +676,51 @@ const AdminDashboard = () => {
             </div>
             
             <div className="flex flex-col items-center justify-center mb-6">
-              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=${payModalData.upi || ""}&pn=${encodeURIComponent(payModalData.user || "")}&am=${payModalData.amount.replace(/[^0-9.]/g, '')}&cu=INR`} alt="UPI QR" className="rounded-xl border border-border" />
+              {(() => {
+                try {
+                  // Validate data before generating QR
+                  if (!payModalData.upi || !payModalData.rawAmount || payModalData.rawAmount <= 0) {
+                    return (
+                      <div className="w-[150px] h-[150px] rounded-xl border border-border bg-muted flex items-center justify-center">
+                        <p className="text-xs font-body text-muted-foreground text-center px-2">
+                          Invalid payment data
+                        </p>
+                      </div>
+                    );
+                  }
+                  
+                  // Generate UPI link using utility function
+                  const upiLink = generateUPILink(
+                    payModalData.upi,
+                    payModalData.rawAmount,
+                    `WD-${payModalData.id}`,
+                    'Growvest'
+                  );
+                  
+                  return (
+                    <>
+                      <div className="rounded-2xl border-2 border-border p-4 bg-white shadow-card">
+                        <QRCodeSVG
+                          value={upiLink}
+                          size={150}
+                          bgColor="#ffffff"
+                          fgColor="#000000"
+                          level="H"
+                        />
+                      </div>
+                      <p className="text-xs font-body text-muted-foreground mt-2">QR code includes amount automatically</p>
+                    </>
+                  );
+                } catch (error) {
+                  return (
+                    <div className="w-[150px] h-[150px] rounded-xl border border-border bg-muted flex items-center justify-center">
+                      <p className="text-xs font-body text-muted-foreground text-center px-2">
+                        Error generating QR
+                      </p>
+                    </div>
+                  );
+                }
+              })()}
             </div>
 
             <div className="space-y-4 mb-6">
@@ -699,17 +748,98 @@ const AdminDashboard = () => {
               </Button>
               <Button
                 className="w-full rounded-xl font-body bg-green-600 hover:bg-green-700"
-                onClick={() => {
-                  handleWithdrawAction(payModalData.id, "approved");
+                onClick={async () => {
+                  // Update withdrawal status to 'paid' with timestamp
+                  try {
+                    const res = await fetch(`${API_URL}/api/withdrawals/${payModalData.id}/status`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ 
+                        status: 'paid',
+                        paidAt: new Date().toISOString()
+                      })
+                    });
+                    if (res.ok) {
+                      setWithdrawList(prev =>
+                        prev.map((w) => (w.id === payModalData.id ? { ...w, status: 'paid' } : w))
+                      );
+                    }
+                  } catch (error) {
+                    console.error('Error updating withdrawal status:', error);
+                  }
                   setPayModalData(null);
                 }}
               >
-                Paid
+                Mark as Paid
               </Button>
             </div>
           </div>
         </div>
       )}
+
+          {/* ── SETTINGS ── */}
+          {activeTab === "settings" && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="max-w-xl mx-auto w-full px-4"
+            >
+              <div className="mb-6 text-center">
+                <h2 className="font-heading text-2xl text-foreground">Admin Settings</h2>
+                <p className="text-sm font-body text-muted-foreground mt-0.5">
+                  Manage admin password and UPI settings
+                </p>
+              </div>
+              
+              <div className="space-y-6">
+                {/* Password Change Section */}
+                <div className="card-premium p-6">
+                  <h3 className="font-heading text-lg font-semibold text-foreground mb-4 text-center">Change Password</h3>
+                  <div className="space-y-4 max-w-md mx-auto">
+                    <div>
+                      <label className="text-sm font-body font-semibold text-muted-foreground block mb-2">Current Password</label>
+                      <input
+                        type="password"
+                        className="w-full h-12 text-base font-body rounded-xl border border-border bg-background px-4 focus:outline-none focus:border-primary transition-colors"
+                        placeholder="Enter current password"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-body font-semibold text-muted-foreground block mb-2">New Password</label>
+                      <input
+                        type="password"
+                        className="w-full h-12 text-base font-body rounded-xl border border-border bg-background px-4 focus:outline-none focus:border-primary transition-colors"
+                        placeholder="Enter new password"
+                      />
+                    </div>
+                    <Button className="w-full rounded-xl font-body font-medium h-12">
+                      Update Password
+                    </Button>
+                  </div>
+                </div>
+                
+                {/* UPI ID Update Section */}
+                <div className="card-premium p-6">
+                  <h3 className="font-heading text-lg font-semibold text-foreground mb-4 text-center">Update UPI ID</h3>
+                  <div className="space-y-4 max-w-md mx-auto">
+                    <div>
+                      <label className="text-sm font-body font-semibold text-muted-foreground block mb-2">UPI ID</label>
+                      <input
+                        type="text"
+                        className="w-full h-12 text-base font-body rounded-xl border border-border bg-background px-4 focus:outline-none focus:border-primary transition-colors"
+                        placeholder="Enter UPI ID"
+                        defaultValue="prasath-005@ptyes"
+                      />
+                    </div>
+                    <Button className="w-full rounded-xl font-body font-medium h-12">
+                      Save UPI ID
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
     </div>
   );
 };

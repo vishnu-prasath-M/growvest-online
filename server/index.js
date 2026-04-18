@@ -21,10 +21,16 @@ mongoose.connect(MONGO_URI)
 
 const authRoutes = require('./routes/authRoutes');
 const withdrawalRoutes = require('./routes/withdrawalRoutes');
+const settingsRoutes = require('./routes/settingsRoutes');
+const transactionRoutes = require('./routes/transactionRoutes');
+const userRoutes = require('./routes/userRoutes');
 
 app.use('/api/investments', investmentRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/withdrawals', withdrawalRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/users', userRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

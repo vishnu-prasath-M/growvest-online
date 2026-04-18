@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Navbar from "@/components/Navbar";
 import { QRCodeSVG } from "qrcode.react";
+import { generateUPILink } from "@/utils/upi";
 
 type Step = "amount" | "qr" | "pending";
 
@@ -26,6 +27,42 @@ const statusConfig = {
   rejected: { label: "Rejected", color: "bg-red-50 text-red-700 border-red-200", icon: XCircle },
 };
 
+// Error boundary component
+const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
+  const [hasError, setHasError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      console.error('Error caught by boundary:', event.error);
+      setErrorMessage(event.error?.message || 'An unexpected error occurred');
+      setHasError(true);
+    };
+
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
+
+  if (hasError) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="container py-12 max-w-5xl">
+          <div className="text-center max-w-md mx-auto">
+            <h2 className="font-heading text-2xl text-foreground mb-4">Something went wrong</h2>
+            <p className="text-muted-foreground font-body mb-6">{errorMessage}</p>
+            <Button onClick={() => window.location.reload()} className="rounded-xl font-body">
+              Reload Page
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+};
+
 const InvestPage = () => {
   const [step, setStep] = useState<Step>("amount");
   const [amount, setAmount] = useState("");
@@ -33,6 +70,9 @@ const InvestPage = () => {
   const [confirmed, setConfirmed] = useState(false);
   const [depositType, setDepositType] = useState<"saving" | "fixed">("saving");
   const [pastInvestments, setPastInvestments] = useState<Investment[]>([]);
+  const [upiId, setUpiId] = useState("prasath-005@ptyes");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     fetch(`${API_URL}/api/investments`)
@@ -50,16 +90,47 @@ const InvestPage = () => {
       });
   }, []);
 
-  const totalInvested = pastInvestments.filter(i => i?.status === 'approved').reduce((acc, curr) => acc + (curr?.amount || 0), 0);
-  const pendingAmount = pastInvestments.filter(i => i?.status === 'pending').reduce((acc, curr) => acc + (curr?.amount || 0), 0);
-  const estAnnualReturn = pastInvestments.filter(i => i?.status === 'approved').reduce((acc, curr) => acc + ((curr?.amount || 0) * (curr?.type === 'fixed' ? 0.12 : 0.07)), 0);
+  // Fetch UPI ID from backend
+  useEffect(() => {
+    const fetchUPIId = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/settings/upiId`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.value) {
+            setUpiId(data.value);
+            setError("");
+          } else {
+            setUpiId("prasath-005@ptyes");
+          }
+        } else {
+          // Use default UPI ID if API fails
+          setUpiId("prasath-005@ptyes");
+        }
+      } catch (err) {
+        console.error('Error fetching UPI ID:', err);
+        setError('Failed to load UPI settings');
+        // Use default UPI ID on error
+        setUpiId("prasath-005@ptyes");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUPIId();
+  }, []);
+
+  // Safe calculations with fallbacks
+  const totalInvested = (pastInvestments || []).filter(i => i?.status === 'approved').reduce((acc, curr) => acc + (curr?.amount || 0), 0);
+  const pendingAmount = (pastInvestments || []).filter(i => i?.status === 'pending').reduce((acc, curr) => acc + (curr?.amount || 0), 0);
+  const estAnnualReturn = (pastInvestments || []).filter(i => i?.status === 'approved').reduce((acc, curr) => acc + ((curr?.amount || 0) * (curr?.type === 'fixed' ? 0.12 : 0.07)), 0);
 
 
   const refCode = `INV-${Date.now().toString().slice(-6)}`;
-  const qrValue = `upi://pay?pa=prasath-005@ptyes&pn=Growvest&am=${amount}&tn=${refCode}&cu=INR`;
+  const qrValue = (!loading && upiId && amount) ? generateUPILink(upiId, amount, refCode, 'Growvest') : "";
 
   const handleInvest = () => {
-    const val = parseFloat(amount);
+    const val = parseFloat(amount || "0");
     if (!amount || isNaN(val) || val < 500) {
       setAmountError("Minimum investment is ₹500");
       return;
@@ -102,11 +173,37 @@ const InvestPage = () => {
     }
   };
 
+  // Show error state if there's a critical error
+  if (error && loading === false) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="container py-12 max-w-5xl">
+          <div className="text-center max-w-md mx-auto">
+            <p className="text-destructive font-body mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()} className="rounded-xl font-body">
+              Retry
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
+    <ErrorBoundary>
+      <div className="min-h-screen bg-background">
+        <Navbar />
 
       <div className="container py-12 max-w-5xl">
+        {/* Loading indicator */}
+        {loading && (
+          <div className="mb-6 p-4 rounded-xl border border-amber-200 bg-amber-50 flex items-center gap-3">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-amber-600"></div>
+            <p className="text-sm font-body text-amber-700">Loading investment settings...</p>
+          </div>
+        )}
+
         {/* Page header */}
         <div className="mb-10">
           <Link
@@ -282,34 +379,56 @@ const InvestPage = () => {
                   <h2 className="font-heading text-2xl text-foreground mb-1">Scan & Pay</h2>
                   <p className="text-sm font-body text-muted-foreground mb-8">
                     Scan the QR code with any UPI app and complete your payment of{" "}
-                    <strong className="text-foreground font-semibold">₹{parseFloat(amount).toLocaleString("en-IN")}</strong>.
+                    <strong className="text-foreground font-semibold">₹{parseFloat(amount || "0").toLocaleString("en-IN")}</strong>.
                     Then click "Confirm Payment" below.
                   </p>
 
                   {/* QR Code */}
                   <div className="flex justify-center mb-8">
                     <div className="rounded-3xl border-2 border-border p-6 bg-white shadow-card">
-                      <QRCodeSVG
-                        value={qrValue}
-                        size={200}
-                        bgColor="#ffffff"
-                        fgColor="#0d2e1a"
-                        level="H"
-                        includeMargin={false}
-                      />
-                      <div className="mt-4 text-center">
-                        <p className="text-xs font-body font-bold text-foreground">Growvest Investments</p>
-                        <p className="text-xs font-body text-muted-foreground mt-0.5">growvest@upi</p>
-                      </div>
+                      {qrValue && upiId ? (
+                        <>
+                          <QRCodeSVG
+                            value={qrValue}
+                            size={200}
+                            bgColor="#ffffff"
+                            fgColor="#0d2e1a"
+                            level="H"
+                            includeMargin={false}
+                          />
+                          <div className="mt-4 text-center">
+                            <p className="text-xs font-body font-bold text-foreground">Growvest Investments</p>
+                            <p className="text-xs font-body text-muted-foreground mt-0.5">{upiId}</p>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="w-[200px] h-[200px] flex items-center justify-center">
+                          <div className="text-center">
+                            {loading ? (
+                              <>
+                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
+                                <p className="text-xs font-body text-muted-foreground">Loading QR...</p>
+                              </>
+                            ) : (
+                              <>
+                                <div className="w-[150px] h-[150px] bg-gray-100 rounded-lg flex items-center justify-center mb-2">
+                                  <p className="text-xs font-body text-muted-foreground">QR Code</p>
+                                </div>
+                                <p className="text-xs font-body text-muted-foreground">Generating...</p>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   {/* Payment details */}
                   <div className="rounded-2xl bg-accent border border-border p-5 mb-6 space-y-3">
                     {[
-                      { label: "Amount", value: `₹${parseFloat(amount).toLocaleString("en-IN")}` },
+                      { label: "Amount", value: `₹${parseFloat(amount || "0").toLocaleString("en-IN")}` },
                       { label: "Reference ID", value: refCode },
-                      { label: "UPI ID", value: "growvest@upi" },
+                      { label: "UPI ID", value: upiId || "prasath-005@ptyes" },
                     ].map((d) => (
                       <div key={d.label} className="flex items-center justify-between">
                         <span className="text-sm font-body text-muted-foreground">{d.label}</span>
@@ -474,6 +593,7 @@ const InvestPage = () => {
         </div>
       </div>
     </div>
+    </ErrorBoundary>
   );
 };
 

@@ -19,8 +19,16 @@ const withdrawalSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'approved', 'rejected'],
+    enum: ['pending', 'approved', 'rejected', 'paid'],
     default: 'pending',
+  },
+  withdrawType: {
+    type: String,
+    enum: ['saving', 'fixed'],
+    default: 'saving',
+  },
+  paidAt: {
+    type: Date,
   },
   date: {
     type: String, // String for easier display on frontend matching previous logic

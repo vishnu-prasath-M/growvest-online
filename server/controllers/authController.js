@@ -56,7 +56,7 @@ exports.loginUser = async (req, res) => {
       return res.status(400).json({ message: 'Please provide all fields' });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ $or: [{ email: email }, { name: email }] });
 
     // "check if not logged in show user not found please login"
     if (!user) {
