@@ -185,11 +185,12 @@ const UserDashboard = () => {
 
 
   useEffect(() => {
-    fetch(`${API_URL}/api/investments`)
+    if (!userEmail) return;
 
+    fetch(`${API_URL}/api/investments`)
       .then(res => res.json())
       .then(data => {
-        if (Array.isArray(data)) setInvestments(data);
+        if (Array.isArray(data)) setInvestments(data.filter(i => i.userEmail === userEmail));
         else setInvestments([]);
       })
       .catch(err => {
@@ -198,10 +199,9 @@ const UserDashboard = () => {
       });
 
     fetch(`${API_URL}/api/withdrawals`)
-
       .then(res => res.json())
       .then(data => {
-        if (Array.isArray(data)) setWithdrawals(data);
+        if (Array.isArray(data)) setWithdrawals(data.filter(w => w.userEmail === userEmail));
         else setWithdrawals([]);
       })
       .catch(err => {
@@ -228,7 +228,7 @@ const UserDashboard = () => {
         setTransactions([]);
         setTransactionsLoading(false);
       });
-  }, []);
+  }, [userEmail]);
 
   // Automatic dismissal for "Withdraw Successful" message
   useEffect(() => {
@@ -248,7 +248,7 @@ const UserDashboard = () => {
         fetch(`${API_URL}/api/investments`)
           .then(res => res.json())
           .then(data => {
-            if (Array.isArray(data)) setInvestments(data);
+            if (Array.isArray(data)) setInvestments(data.filter(i => i.userEmail === userEmail));
             else setInvestments([]);
           })
           .catch(err => {
@@ -259,7 +259,7 @@ const UserDashboard = () => {
         fetch(`${API_URL}/api/withdrawals`)
           .then(res => res.json())
           .then(data => {
-            if (Array.isArray(data)) setWithdrawals(data);
+            if (Array.isArray(data)) setWithdrawals(data.filter(w => w.userEmail === userEmail));
             else setWithdrawals([]);
           })
           .catch(err => {

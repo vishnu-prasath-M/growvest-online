@@ -79,7 +79,13 @@ const InvestPage = () => {
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
-          setPastInvestments(data);
+          const userStr = localStorage.getItem("user");
+          const user = userStr ? JSON.parse(userStr) : null;
+          if (user && user.email) {
+            setPastInvestments(data.filter(i => i.userEmail === user.email));
+          } else {
+            setPastInvestments([]);
+          }
         } else {
           setPastInvestments([]);
         }
