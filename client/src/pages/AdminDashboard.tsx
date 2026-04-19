@@ -28,7 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-const API_URL = import.meta.env.VITE_API_URL || "https://growvest-online.onrender.com";
+const API_URL = import.meta.env.VITE_API_URL || (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "http://localhost:5000" : "https://growvest-online.onrender.com");
 
 /* ─── Mock Data & Types ─────────────────────────── */
 
@@ -308,7 +308,7 @@ const AdminDashboard = () => {
             <div>
               <p className="text-xs font-body text-muted-foreground hidden sm:block">Zenvest Admin</p>
               <h1 className="font-heading font-bold text-foreground capitalize text-base sm:text-lg leading-tight">
-                {activeTab === "pending" ? "Pending" : activeTab}
+                {activeTab === "pending" ? "Pending" : activeTab === "settings" ? "Admin Dashboard" : activeTab}
               </h1>
             </div>
           </div>
@@ -817,18 +817,18 @@ const AdminDashboard = () => {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
-              className="max-w-xl mx-auto w-full pt-4 pb-8 px-1"
+              className="max-w-3xl mx-auto px-4 w-full flex flex-col items-center justify-center"
             >
-              <div className="mb-8">
+              <div className="mb-8 w-full">
                 <h2 className="font-heading text-3xl font-bold text-foreground text-center">Admin Settings</h2>
                 <p className="text-sm font-body text-muted-foreground mt-2 text-center">
                   Manage your security preferences and payment details
                 </p>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="w-full flex flex-col md:flex-row justify-center gap-6">
                 {/* Password Change Section */}
-                <div className="card-premium p-6 sm:p-8 flex flex-col h-full">
+                <div className="card-premium p-6 sm:p-8 flex flex-col h-full w-full">
                   <div className="mb-6">
                     <div className="h-10 w-10 rounded-xl bg-accent flex items-center justify-center mb-4">
                       <Settings className="h-5 w-5 text-secondary" />
@@ -862,7 +862,7 @@ const AdminDashboard = () => {
                 </div>
                 
                 {/* UPI ID Update Section */}
-                <div className="card-premium p-6 sm:p-8 flex flex-col h-full">
+                <div className="card-premium p-6 sm:p-8 flex flex-col h-full w-full">
                   <div className="mb-6">
                     <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center mb-4">
                       <DollarSign className="h-5 w-5 text-blue-600" />

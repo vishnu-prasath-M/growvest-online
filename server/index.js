@@ -2,6 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const bcrypt = require('bcryptjs');
+const User = require('./models/User');
 const investmentRoutes = require('./routes/investmentRoutes');
 
 const app = express();
@@ -16,7 +18,34 @@ const dns = require('dns');
 dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 mongoose.connect(MONGO_URI)
-  .then(() => console.log('Connected to MongoDB (Dummy/Local)'))
+  .then(async () => {
+    console.log('Connected to MongoDB (Dummy/Local)');
+    // Seed Admin User
+    try {
+      const adminEmail = 'MohanRaj@235';
+      const existingUser = await User.findOne({ email: adminEmail });
+      
+      if (existingUser) {
+        if (existingUser.role !== 'admin') {
+          existingUser.role = 'admin';
+          await existingUser.save();
+          console.log('Existing user updated to admin');
+        }
+      } else {
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash('Durga@11', salt);
+        const admin = await User.create({
+          name: 'Admin',
+          email: adminEmail,
+          password: hashedPassword,
+          role: 'admin'
+        });
+        console.log(`Admin user seeded successfully with email: ${admin.email}`);
+      }
+    } catch (error) {
+      console.error('Error seeding admin user:', error);
+    }
+  })
   .catch(err => console.error('MongoDB connection error:', err));
 
 const authRoutes = require('./routes/authRoutes');

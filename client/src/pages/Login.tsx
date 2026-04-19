@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import ZenvestLogo from "@/components/ZenvestLogo";
 
-const API_URL = import.meta.env.VITE_API_URL || "https://growvest-online.onrender.com";
+const API_URL = import.meta.env.VITE_API_URL || (window.location.hostname === "localhost" ? "http://localhost:5000" : "https://growvest-online.onrender.com");
 
 const Login = () => {
 
@@ -31,7 +31,13 @@ const Login = () => {
       } else {
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data));
-        navigate("/dashboard"); // or wherever it should redirect
+        
+        // Redirect based on role
+        if (data.role === "admin") {
+          navigate("/admin");
+        } else {
+          navigate("/dashboard");
+        }
       }
     } catch (err) {
       setError("Server error. Please try again later.");
