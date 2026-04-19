@@ -19,7 +19,7 @@ interface Investment {
   type?: "saving" | "fixed";
 }
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_URL = import.meta.env.VITE_API_URL || "https://growvest-online.onrender.com";
 
 const statusConfig = {
   pending: { label: "Waiting for Approval", color: "bg-amber-50 text-amber-700 border-amber-200", icon: Clock },
@@ -64,6 +64,7 @@ const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
 };
 
 const InvestPage = () => {
+  const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
   const [step, setStep] = useState<Step>("amount");
   const [amount, setAmount] = useState("");
   const [amountError, setAmountError] = useState("");
@@ -389,44 +390,83 @@ const InvestPage = () => {
                     Then click "Confirm Payment" below.
                   </p>
 
-                  {/* QR Code */}
-                  <div className="flex justify-center mb-8">
-                    <div className="rounded-3xl border-2 border-border p-6 bg-white shadow-card">
-                      {qrValue && upiId ? (
-                        <>
+                  {/* Payment Methods */}
+                  <div className="flex flex-col items-center justify-center mb-8 gap-4">
+                    {isMobile && qrValue ? (
+                      <div className="w-full text-center">
+                        <p className="text-sm font-body text-primary font-medium mb-3">
+                          On mobile, use Pay via UPI button instead of QR
+                        </p>
+                        <a 
+                          href={qrValue} 
+                          className="w-full sm:w-auto inline-flex items-center justify-center bg-primary text-primary-foreground h-12 px-8 rounded-xl font-body font-semibold text-base transition-colors hover:bg-primary/90 shadow-md"
+                        >
+                          Pay via UPI / GPay
+                        </a>
+                      </div>
+                    ) : null}
+
+                    {(!isMobile || !qrValue) && (
+                      <div className="rounded-3xl border-2 border-border p-6 bg-white shadow-card mt-2">
+                        {qrValue && upiId ? (
+                          <>
+                            <QRCodeSVG
+                              value={qrValue}
+                              size={200}
+                              bgColor="#ffffff"
+                              fgColor="#0d2e1a"
+                              level="H"
+                              includeMargin={false}
+                            />
+                            <div className="mt-4 text-center">
+                              <p className="text-xs font-body font-bold text-foreground">Growvest Investments</p>
+                              <p className="text-xs font-body text-muted-foreground mt-0.5">{upiId}</p>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="w-[200px] h-[200px] flex items-center justify-center">
+                            <div className="text-center">
+                              {loading ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
+                                  <p className="text-xs font-body text-muted-foreground">Loading QR...</p>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="w-[150px] h-[150px] bg-gray-100 rounded-lg flex items-center justify-center mb-2">
+                                    <p className="text-xs font-body text-muted-foreground">QR Code</p>
+                                  </div>
+                                  <p className="text-xs font-body text-muted-foreground">Generating...</p>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {isMobile && qrValue && (
+                      <div className="text-center mt-2">
+                        <button 
+                          onClick={() => {
+                            const qrDiv = document.getElementById('qr-container-mobile');
+                            if (qrDiv) qrDiv.classList.toggle('hidden');
+                          }}
+                          className="text-xs font-body text-muted-foreground underline"
+                        >
+                          Show QR code instead
+                        </button>
+                        <div id="qr-container-mobile" className="hidden mt-4 rounded-3xl border-2 border-border p-6 bg-white shadow-card flex items-center justify-center">
                           <QRCodeSVG
-                            value={qrValue}
-                            size={200}
-                            bgColor="#ffffff"
-                            fgColor="#0d2e1a"
-                            level="H"
-                            includeMargin={false}
-                          />
-                          <div className="mt-4 text-center">
-                            <p className="text-xs font-body font-bold text-foreground">Growvest Investments</p>
-                            <p className="text-xs font-body text-muted-foreground mt-0.5">{upiId}</p>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="w-[200px] h-[200px] flex items-center justify-center">
-                          <div className="text-center">
-                            {loading ? (
-                              <>
-                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
-                                <p className="text-xs font-body text-muted-foreground">Loading QR...</p>
-                              </>
-                            ) : (
-                              <>
-                                <div className="w-[150px] h-[150px] bg-gray-100 rounded-lg flex items-center justify-center mb-2">
-                                  <p className="text-xs font-body text-muted-foreground">QR Code</p>
-                                </div>
-                                <p className="text-xs font-body text-muted-foreground">Generating...</p>
-                              </>
-                            )}
-                          </div>
+                              value={qrValue}
+                              size={150}
+                              bgColor="#ffffff"
+                              fgColor="#0d2e1a"
+                              level="H"
+                              includeMargin={false}
+                            />
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Payment details */}
@@ -465,7 +505,7 @@ const InvestPage = () => {
                       disabled={confirmed}
                       className="h-12 rounded-xl font-body font-medium group"
                     >
-                      {confirmed ? "Submitting…" : "Confirm Payment Sent"}
+                      {confirmed ? "Submitting…" : (isMobile ? "Paid" : "Confirm Payment Sent")}
                       {!confirmed && <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />}
                     </Button>
                   </div>

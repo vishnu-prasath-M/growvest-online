@@ -57,7 +57,7 @@ const statusConfig: Record<string, { label: string; className: string }> = {
 
 type NavTab = "overview" | "investments" | "history" | "withdraw";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_URL = import.meta.env.VITE_API_URL || "https://growvest-online.onrender.com";
 
 const safeCurrency = (val: any) => {
 
@@ -81,6 +81,7 @@ const navItems: { label: string; tab: NavTab }[] = [
 /* ─── Component ────────────────────────────────────── */
 const UserDashboard = () => {
   const [activeTab, setActiveTab] = useState<NavTab>("overview");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [withdrawDone, setWithdrawDone] = useState(false);
   const [showUpiInput, setShowUpiInput] = useState(false);
@@ -493,24 +494,15 @@ const UserDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Mobile Menu Button */}
-      <button
-        onClick={() => {
-          const mobileMenu = document.getElementById('mobile-menu');
-          if (mobileMenu) {
-            mobileMenu.classList.toggle('translate-x-0');
-          }
-        }}
-        className="lg:hidden fixed top-4 left-4 z-50 p-3 rounded-xl bg-card border border-border shadow-lg"
-      >
-        <Menu className="h-5 w-5 text-foreground" />
-      </button>
+    <div className="min-h-screen bg-background flex overflow-x-hidden">
+
 
       {/* Mobile Sidebar */}
       <aside
         id="mobile-menu"
-        className="fixed inset-y-0 left-0 z-40 w-64 bg-card border-r border-border transform -translate-x-full transition-transform duration-300 lg:hidden"
+        className={`fixed inset-y-0 left-0 z-40 w-64 bg-card border-r border-border flex flex-col transform transition-transform duration-300 lg:hidden ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
       >
         <div className="p-5 border-b border-border flex items-center justify-between">
           <div>
@@ -518,12 +510,7 @@ const UserDashboard = () => {
             <p className="text-xs font-body text-muted-foreground mt-1">User Dashboard</p>
           </div>
           <button
-            onClick={() => {
-              const mobileMenu = document.getElementById('mobile-menu');
-              if (mobileMenu) {
-                mobileMenu.classList.add('-translate-x-full');
-              }
-            }}
+            onClick={() => setSidebarOpen(false)}
             className="p-2 rounded-lg hover:bg-accent transition-colors"
           >
             <X className="h-4 w-4 text-foreground" />
@@ -535,10 +522,7 @@ const UserDashboard = () => {
               key={item.tab}
               onClick={() => {
                 setActiveTab(item.tab);
-                const mobileMenu = document.getElementById('mobile-menu');
-                if (mobileMenu) {
-                  mobileMenu.classList.add('-translate-x-full');
-                }
+                setSidebarOpen(false);
               }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-body font-medium transition-colors" ${
                 activeTab === item.tab
@@ -599,7 +583,7 @@ const UserDashboard = () => {
             </button>
           ))}
         </nav>
-        <div className="p-4 border-t border-border">
+        <div className="mt-auto sticky bottom-0 p-4 border-t border-border bg-card">
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-body font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
@@ -610,34 +594,41 @@ const UserDashboard = () => {
         </div>
       </aside>
 
+      {/* Mobile Overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-foreground/20 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Main content */}
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Top bar */}
-        <header className="sticky top-0 z-20 bg-card/95 backdrop-blur border-b border-border px-6 h-16 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-body text-muted-foreground">Good morning</p>
-            <h1 className="font-heading text-lg text-foreground font-bold leading-tight flex items-center gap-2">
-              {user?.name || "User"}
-              {depositBadge && (
-                <span className="text-[10px] bg-secondary/10 text-secondary border border-secondary/20 px-2 py-0.5 rounded-full whitespace-nowrap">
-                  {depositBadge}
-                </span>
-              )}
-            </h1>
-          </div>
+        <header className="sticky top-0 z-20 bg-card/95 backdrop-blur border-b border-border px-4 sm:px-6 h-16 flex items-center justify-between w-full">
           <div className="flex items-center gap-3">
-            <button className="h-9 w-9 rounded-xl border border-border bg-card flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+            <button
+              onClick={() => setSidebarOpen(prev => !prev)}
+              className="lg:hidden w-10 h-10 flex items-center justify-center rounded-lg hover:bg-muted"
+            >
+              <Menu size={20} className="text-foreground" />
+            </button>
+            <div>
+              <p className="text-xs font-body text-muted-foreground hidden sm:block">Good morning</p>
+              <h1 className="font-heading text-base sm:text-lg text-foreground font-bold leading-tight flex items-center gap-2">
+                {user?.name || "User"}
+                {depositBadge && (
+                  <span className="text-[10px] bg-secondary/10 text-secondary border border-secondary/20 px-2 py-0.5 rounded-full whitespace-nowrap">
+                    {depositBadge}
+                  </span>
+                )}
+              </h1>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button className="hidden md:flex h-9 w-9 rounded-xl border border-border bg-card items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
               <Bell className="h-4 w-4" />
             </button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="rounded-xl font-body"
-              onClick={handleLogout}
-            >
-              <LogOut className="mr-1.5 h-3.5 w-3.5" />
-              Logout
-            </Button>
             <Link to="/invest">
               <Button size="sm" className="rounded-xl font-body font-medium group">
                 <PlusCircle className="mr-1.5 h-3.5 w-3.5" />
@@ -665,7 +656,7 @@ const UserDashboard = () => {
           ))}
         </div>
 
-        <main className="flex-1 p-4 sm:p-6 lg:pl-8 pt-20 lg:pt-6">
+        <main className="flex-1 p-3 sm:p-4 lg:p-6 lg:pl-8 max-w-full overflow-hidden w-full min-w-0">
           {/* ── OVERVIEW ── */}
           {activeTab === "overview" && (
             <motion.div
@@ -683,7 +674,7 @@ const UserDashboard = () => {
                       initial={{ opacity: 0, y: 16 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.07 }}
-                      className="card-premium p-4 sm:p-5"
+                      className="card-premium p-4 sm:p-5 w-full min-w-0 break-words"
                     >
                       <div className="flex items-start justify-between mb-3">
                         <span className="text-xs font-body text-muted-foreground leading-tight">
@@ -732,7 +723,7 @@ const UserDashboard = () => {
                   const savingDeposits = investments.filter(inv => inv?.type === 'saving').slice(0, 3);
                   if (savingDeposits.length === 0) return null;
                   return (
-                    <div className="card-premium overflow-hidden">
+                    <div className="card-premium overflow-hidden w-full min-w-0 break-words">
                       <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-border flex items-center justify-between">
                         <h2 className="font-heading font-semibold text-foreground text-base sm:text-lg">Saving Deposits</h2>
                         <button
@@ -788,7 +779,7 @@ const UserDashboard = () => {
                   const fixedDeposits = investments.filter(inv => inv?.type === 'fixed').slice(0, 3);
                   if (fixedDeposits.length === 0) return null;
                   return (
-                    <div className="card-premium overflow-hidden">
+                    <div className="card-premium overflow-hidden w-full min-w-0 break-words">
                       <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-border flex items-center justify-between">
                         <h2 className="font-heading font-semibold text-foreground text-base sm:text-lg">Fixed Deposits</h2>
                         <button

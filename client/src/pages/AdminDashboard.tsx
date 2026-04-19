@@ -28,7 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_URL = import.meta.env.VITE_API_URL || "https://growvest-online.onrender.com";
 
 /* ─── Mock Data & Types ─────────────────────────── */
 
@@ -82,6 +82,7 @@ const navItems: { label: string; tab: AdminTab; icon: React.ElementType; badge?:
 
 /* ─── Component ─────────────────────────────────── */
 const AdminDashboard = () => {
+  const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pendingList, setPendingList] = useState<PendingInv[]>([]);
@@ -222,11 +223,11 @@ const AdminDashboard = () => {
   ];
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="min-h-screen flex bg-background overflow-x-hidden">
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-64 bg-card border-r border-border transform transition-transform duration-300 lg:translate-x-0 lg:static lg:flex lg:flex-col ${
-          sidebarOpen ? "translate-x-0 flex flex-col" : "-translate-x-full hidden lg:flex"
+        className={`fixed inset-y-0 left-0 z-40 w-64 bg-card border-r border-border transform transition-transform duration-300 flex flex-col lg:translate-x-0 lg:static lg:flex ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
         <div className="flex items-center justify-between p-5 border-b border-border">
@@ -276,7 +277,7 @@ const AdminDashboard = () => {
           })}
         </nav>
 
-        <div className="p-4 border-t border-border">
+        <div className="mt-auto sticky bottom-0 p-4 border-t border-border bg-card">
           <Link to="/">
             <Button variant="outline" size="sm" className="w-full rounded-xl font-body">
               Back to Site
@@ -294,35 +295,35 @@ const AdminDashboard = () => {
       )}
 
       {/* Main */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex-1 min-w-0 flex flex-col overflow-x-hidden">
         {/* Header */}
-        <header className="sticky top-0 z-20 flex items-center h-16 px-6 border-b border-border bg-card/95 backdrop-blur justify-between">
+        <header className="sticky top-0 z-20 flex items-center h-16 px-4 sm:px-6 border-b border-border bg-card/95 backdrop-blur justify-between w-full">
           <div className="flex items-center gap-3">
             <button
-              className="lg:hidden p-1.5 text-foreground rounded-lg hover:bg-muted"
+              className="lg:hidden w-10 h-10 flex items-center justify-center text-foreground rounded-lg hover:bg-muted"
               onClick={() => setSidebarOpen(true)}
             >
               <Menu size={20} />
             </button>
             <div>
-              <p className="text-xs font-body text-muted-foreground">Zenvest Admin</p>
-              <h1 className="font-heading font-bold text-foreground capitalize text-lg leading-tight">
-                {activeTab === "pending" ? "Pending Investments" : activeTab}
+              <p className="text-xs font-body text-muted-foreground hidden sm:block">Zenvest Admin</p>
+              <h1 className="font-heading font-bold text-foreground capitalize text-base sm:text-lg leading-tight">
+                {activeTab === "pending" ? "Pending" : activeTab}
               </h1>
             </div>
           </div>
 
           {(pendingCount + wdPendingCount) > 0 && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200">
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200">
               <AlertCircle className="h-4 w-4 text-amber-600" />
               <span className="text-xs font-body font-semibold text-amber-700">
-                {pendingCount + wdPendingCount} pending actions
+                {pendingCount + wdPendingCount} pending
               </span>
             </div>
           )}
         </header>
 
-        <main className="flex-1 p-4 sm:p-6">
+        <main className="flex-1 p-3 sm:p-4 lg:p-6 max-w-full overflow-hidden w-full min-w-0">
           {/* ── OVERVIEW ── */}
           {activeTab === "overview" && (
             <motion.div
@@ -579,9 +580,9 @@ const AdminDashboard = () => {
                 </p>
               </div>
 
-              <div className="space-y-4">
+              <div className="flex flex-col gap-4">
                 {withdrawList.map((w) => (
-                  <motion.div key={w.id} layout className="card-premium p-5">
+                  <motion.div key={w.id} layout className="card-premium p-4 w-full max-w-full overflow-hidden">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div className="flex items-center gap-4">
                         <div
@@ -593,30 +594,26 @@ const AdminDashboard = () => {
                           {w.status === "pending" && <ArrowDownToLine className="h-5 w-5 text-amber-600" />}
                           {w.status === "rejected" && <XCircle className="h-5 w-5 text-red-500" />}
                         </div>
-                        <div>
-                          <div className="flex items-center gap-3 flex-wrap">
-                            <p className="text-sm font-body font-bold text-foreground">{w.user}</p>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-body font-bold text-foreground break-words">{w.user}</p>
                             <span className={`text-[10px] font-body font-semibold px-2 py-0.5 rounded-full border ${statusStyle[w.status]}`}>
                               {w.status.charAt(0).toUpperCase() + w.status.slice(1)}
                             </span>
                             {w.status === "pending" && w.upi && (
-                              <span className="text-[10px] font-body font-medium bg-muted px-2 py-0.5 rounded-full text-muted-foreground ml-2">
+                              <span className="text-[10px] font-body font-medium bg-muted px-2 py-0.5 rounded-full text-muted-foreground break-all">
                                 UPI: {w.upi}
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-5 mt-1.5">
-                            <div>
-                              <p className="text-[10px] font-body text-muted-foreground">Request ID</p>
-                              <p className="text-sm font-body font-medium text-foreground">{w.id}</p>
-                            </div>
-                            <div>
+                          <div className="flex flex-wrap items-center gap-3 mt-1.5">
+                            <div className="min-w-0">
                               <p className="text-[10px] font-body text-muted-foreground">Amount</p>
-                              <p className="text-lg font-heading font-bold text-destructive">{w.amount}</p>
+                              <p className="text-base font-heading font-bold text-destructive">{w.amount}</p>
                             </div>
-                            <div>
+                            <div className="min-w-0">
                               <p className="text-[10px] font-body text-muted-foreground">Date</p>
-                              <p className="text-sm font-body font-medium text-foreground">{w.date}</p>
+                              <p className="text-xs font-body font-medium text-foreground">{w.date}</p>
                             </div>
                           </div>
                         </div>
@@ -675,7 +672,7 @@ const AdminDashboard = () => {
               </p>
             </div>
             
-            <div className="flex flex-col items-center justify-center mb-6">
+            <div className="flex flex-col items-center justify-center mb-6 gap-4">
               {(() => {
                 try {
                   // Validate data before generating QR
@@ -699,16 +696,53 @@ const AdminDashboard = () => {
                   
                   return (
                     <>
-                      <div className="rounded-2xl border-2 border-border p-4 bg-white shadow-card">
-                        <QRCodeSVG
-                          value={upiLink}
-                          size={150}
-                          bgColor="#ffffff"
-                          fgColor="#000000"
-                          level="H"
-                        />
-                      </div>
-                      <p className="text-xs font-body text-muted-foreground mt-2">QR code includes amount automatically</p>
+                      {isMobile ? (
+                        <div className="w-full text-center">
+                          <p className="text-sm font-body text-primary font-medium mb-3">
+                            On mobile, use Pay via UPI button instead of QR
+                          </p>
+                          <a 
+                            href={upiLink} 
+                            className="w-full sm:w-auto inline-flex items-center justify-center bg-primary text-primary-foreground h-12 px-8 rounded-xl font-body font-semibold text-base transition-colors hover:bg-primary/90 shadow-md"
+                          >
+                            Pay via UPI / GPay
+                          </a>
+                          
+                          <div className="text-center mt-4">
+                            <button 
+                              onClick={() => {
+                                const qrDiv = document.getElementById('qr-container-admin-mobile');
+                                if (qrDiv) qrDiv.classList.toggle('hidden');
+                              }}
+                              className="text-xs font-body text-muted-foreground underline"
+                            >
+                              Show QR code instead
+                            </button>
+                            <div id="qr-container-admin-mobile" className="hidden mt-4 rounded-2xl border-2 border-border p-4 bg-white shadow-card flex items-center justify-center">
+                              <QRCodeSVG
+                                  value={upiLink}
+                                  size={150}
+                                  bgColor="#ffffff"
+                                  fgColor="#000000"
+                                  level="H"
+                                />
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="rounded-2xl border-2 border-border p-4 bg-white shadow-card">
+                            <QRCodeSVG
+                              value={upiLink}
+                              size={150}
+                              bgColor="#ffffff"
+                              fgColor="#000000"
+                              level="H"
+                            />
+                          </div>
+                          <p className="text-xs font-body text-muted-foreground mt-2">QR code includes amount automatically</p>
+                        </>
+                      )}
                     </>
                   );
                 } catch (error) {
@@ -783,59 +817,78 @@ const AdminDashboard = () => {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
-              className="max-w-xl mx-auto w-full px-4"
+              className="max-w-xl mx-auto w-full pt-4 pb-8 px-1"
             >
-              <div className="mb-6 text-center">
-                <h2 className="font-heading text-2xl text-foreground">Admin Settings</h2>
-                <p className="text-sm font-body text-muted-foreground mt-0.5">
-                  Manage admin password and UPI settings
+              <div className="mb-8">
+                <h2 className="font-heading text-3xl font-bold text-foreground text-center">Admin Settings</h2>
+                <p className="text-sm font-body text-muted-foreground mt-2 text-center">
+                  Manage your security preferences and payment details
                 </p>
               </div>
               
-              <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Password Change Section */}
-                <div className="card-premium p-6">
-                  <h3 className="font-heading text-lg font-semibold text-foreground mb-4 text-center">Change Password</h3>
-                  <div className="space-y-4 max-w-md mx-auto">
-                    <div>
-                      <label className="text-sm font-body font-semibold text-muted-foreground block mb-2">Current Password</label>
-                      <input
-                        type="password"
-                        className="w-full h-12 text-base font-body rounded-xl border border-border bg-background px-4 focus:outline-none focus:border-primary transition-colors"
-                        placeholder="Enter current password"
-                      />
+                <div className="card-premium p-6 sm:p-8 flex flex-col h-full">
+                  <div className="mb-6">
+                    <div className="h-10 w-10 rounded-xl bg-accent flex items-center justify-center mb-4">
+                      <Settings className="h-5 w-5 text-secondary" />
                     </div>
-                    <div>
-                      <label className="text-sm font-body font-semibold text-muted-foreground block mb-2">New Password</label>
-                      <input
-                        type="password"
-                        className="w-full h-12 text-base font-body rounded-xl border border-border bg-background px-4 focus:outline-none focus:border-primary transition-colors"
-                        placeholder="Enter new password"
-                      />
-                    </div>
-                    <Button className="w-full rounded-xl font-body font-medium h-12">
-                      Update Password
-                    </Button>
+                    <h3 className="font-heading text-xl font-bold text-foreground">Security</h3>
+                    <p className="text-xs font-body text-muted-foreground mt-1">Update your admin password</p>
                   </div>
+                  
+                  <div className="space-y-4 flex-1">
+                    <div className="space-y-2">
+                      <label className="text-sm font-body font-semibold text-foreground">Current Password</label>
+                      <input
+                        type="password"
+                        className="w-full h-12 text-base font-body rounded-xl border border-border bg-background px-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                        placeholder="••••••••"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-body font-semibold text-foreground">New Password</label>
+                      <input
+                        type="password"
+                        className="w-full h-12 text-base font-body rounded-xl border border-border bg-background px-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                        placeholder="••••••••"
+                      />
+                    </div>
+                  </div>
+                  
+                  <Button className="w-full rounded-xl font-body font-medium h-12 mt-6">
+                    Update Password
+                  </Button>
                 </div>
                 
                 {/* UPI ID Update Section */}
-                <div className="card-premium p-6">
-                  <h3 className="font-heading text-lg font-semibold text-foreground mb-4 text-center">Update UPI ID</h3>
-                  <div className="space-y-4 max-w-md mx-auto">
-                    <div>
-                      <label className="text-sm font-body font-semibold text-muted-foreground block mb-2">UPI ID</label>
+                <div className="card-premium p-6 sm:p-8 flex flex-col h-full">
+                  <div className="mb-6">
+                    <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center mb-4">
+                      <DollarSign className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <h3 className="font-heading text-xl font-bold text-foreground">Payment Details</h3>
+                    <p className="text-xs font-body text-muted-foreground mt-1">Update your receiving UPI ID</p>
+                  </div>
+                  
+                  <div className="space-y-4 flex-1">
+                    <div className="space-y-2">
+                      <label className="text-sm font-body font-semibold text-foreground">Active UPI ID</label>
                       <input
                         type="text"
-                        className="w-full h-12 text-base font-body rounded-xl border border-border bg-background px-4 focus:outline-none focus:border-primary transition-colors"
-                        placeholder="Enter UPI ID"
+                        className="w-full h-12 text-base font-body rounded-xl border border-border bg-background px-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                        placeholder="example@upi"
                         defaultValue="prasath-005@ptyes"
                       />
+                      <p className="text-[10px] font-body text-muted-foreground mt-2 leading-relaxed">
+                        This UPI ID will be shown to users when they initiate a manual deposit via QR code.
+                      </p>
                     </div>
-                    <Button className="w-full rounded-xl font-body font-medium h-12">
-                      Save UPI ID
-                    </Button>
                   </div>
+                  
+                  <Button className="w-full rounded-xl font-body font-medium h-12 mt-6">
+                    Save UPI ID
+                  </Button>
                 </div>
               </div>
             </motion.div>
