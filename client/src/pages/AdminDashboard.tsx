@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Users,
@@ -14,6 +14,7 @@ import {
   TrendingUp,
   AlertCircle,
   Settings,
+  LogOut,
 } from "lucide-react";
 import ZenvestLogo from "@/components/ZenvestLogo";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useAuth } from "@/context/AuthContext";
 
 const API_URL = import.meta.env.VITE_API_URL || (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "http://localhost:5000" : "https://growvest-online.onrender.com");
 
@@ -46,7 +48,15 @@ interface PendingInv {
   totalInterest?: number;
 }
 
-// Removing mock initialPending
+interface UserData {
+  _id: string;
+  name: string;
+  email: string;
+  createdAt: string;
+  balance: number;
+  role: string;
+  totalInvested?: number;
+}
 
 const usersData: any[] = []; // Removed static
 
@@ -58,6 +68,7 @@ interface WithdrawReq {
   date: string;
   status: WithdrawStatus;
   upi?: string;
+  rawAmount?: number;
 }
 
 const initialWithdrawals: WithdrawReq[] = []; // Removed static
@@ -80,75 +91,97 @@ const navItems: { label: string; tab: AdminTab; icon: React.ElementType; badge?:
   { label: "Settings", tab: "settings", icon: Settings },
 ];
 
-/* ─── Component ─────────────────────────────────── */
 const AdminDashboard = () => {
+  const { user: authUser, token, logout } = useAuth();
+  const navigate = useNavigate();
   const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pendingList, setPendingList] = useState<PendingInv[]>([]);
   const [payModalData, setPayModalData] = useState<WithdrawReq | null>(null);
   const [withdrawList, setWithdrawList] = useState<WithdrawReq[]>([]);
+  const [allUsers, setAllUsers] = useState<UserData[]>([]);
 
   useEffect(() => {
-    fetch(`${API_URL}/api/withdrawals`)
-
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setWithdrawList(data.map((w: any) => ({
-            id: w?._id || "unknown",
-            user: w?.userName || "Unknown",
-            amount: `₹${(w?.amount || 0).toLocaleString("en-IN")}`,
-            rawAmount: w?.amount || 0,
-            date: w?.date || "",
-            status: w?.status || "pending",
-            upi: w?.upiId || ""
-          })));
-
-        } else {
-          setWithdrawList([]);
-        }
-      })
-      .catch(err => {
-        console.error("Error fetching withdrawals:", err);
-        setWithdrawList([]);
-      });
-  }, []);
-
+    if (authUser && authUser.role !== 'admin') {
+      navigate('/dashboard');
+    }
+  }, [authUser, navigate]);
   useEffect(() => {
-    fetch(`${API_URL}/api/investments`)
+    if (!token) return;
 
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setPendingList(data.map((inv: any) => ({
-            _id: inv?._id || "unknown",
-            user: inv?.userName || "Unknown User",
-            email: inv?.userEmail || "user@example.com",
-            amount: inv?.amount || 0,
-            startDate: inv?.startDate || new Date().toISOString(),
-            ref: inv?.ref || "REF-ERROR",
-            status: inv?.status || "pending",
-            type: inv?.type || "saving",
-            totalInterest: inv?.totalInterest || 0
-          })));
-
-        } else {
-          setPendingList([]);
-        }
+    const fetchAll = () => {
+      // Fetch Withdrawals
+      fetch(`${API_URL}/api/withdrawals`, {
+        headers: { 'Authorization': `Bearer ${token}` }
       })
-      .catch(err => {
-        console.error("Error fetching investments:", err);
-        setPendingList([]);
-      });
-  }, []);
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            setWithdrawList(data.map((w: any) => ({
+              id: w?._id || "unknown",
+              user: w?.userName || "Unknown",
+              amount: `₹${(w?.amount || 0).toLocaleString("en-IN")}`,
+              rawAmount: w?.amount || 0,
+              date: w?.date || "",
+              status: w?.status || "pending",
+              upi: w?.upiId || ""
+            })));
+          }
+        })
+        .catch(err => console.error("Error fetching withdrawals:", err));
+
+      // Fetch Investments
+      fetch(`${API_URL}/api/investments`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            setPendingList(data.map((inv: any) => ({
+              _id: inv?._id || "unknown",
+              user: inv?.userName || "Unknown User",
+              email: inv?.userEmail || "user@example.com",
+              amount: inv?.amount || 0,
+              startDate: inv?.startDate || new Date().toISOString(),
+              ref: inv?.ref || "REF-ERROR",
+              status: inv?.status || "pending",
+              type: inv?.type || "saving",
+              totalInterest: inv?.totalInterest || 0
+            })));
+          }
+        })
+        .catch(err => console.error("Error fetching investments:", err));
+
+      // Fetch Users
+      fetch(`${API_URL}/api/users`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            setAllUsers(data);
+          }
+        })
+        .catch(err => console.error("Error fetching users:", err));
+    };
+
+    fetchAll();
+  }, [token, activeTab]);
+
+  // Combined user fetch logic above in fetchAll
 
   const handleInvestAction = async (id: string, action: "approved" | "rejected" | "pending") => {
+    if (!token) return;
+
     try {
       const res = await fetch(`${API_URL}/api/investments/${id}/status`, {
 
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({ status: action }),
       });
       if (res.ok) {
@@ -162,11 +195,16 @@ const AdminDashboard = () => {
   };
 
   const handleWithdrawAction = async (id: string, action: "approved" | "rejected") => {
+    if (!token) return;
+
     try {
       const res = await fetch(`${API_URL}/api/withdrawals/${id}/status`, {
 
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({ status: action }),
       });
       if (res.ok) {
@@ -186,34 +224,17 @@ const AdminDashboard = () => {
   const totalReturnsStr = `₹${Math.round(pendingList.filter(i => i?.status === 'approved').reduce((acc, curr) => acc + (curr?.totalInterest || 0), 0)).toLocaleString("en-IN")}`;
 
   
-  // Real dynamic users computation from investments
-  const uniqueUsersMap = new Map();
-  pendingList.forEach(inv => {
-    if (!inv || !inv.email) return;
-    if (!uniqueUsersMap.has(inv.email)) {
-      uniqueUsersMap.set(inv.email, {
-        id: inv._id,
-        name: inv.user || "User",
-        email: inv.email,
-        joined: new Date(inv.startDate || Date.now()).toLocaleDateString(),
-        investedAmt: inv.amount || 0,
-        balanceAmt: (inv.amount || 0) + (inv.totalInterest || 0),
-        status: "Active"
-      });
-    } else {
-      const u = uniqueUsersMap.get(inv.email);
-      u.investedAmt += (inv.amount || 0);
-      u.balanceAmt += ((inv.amount || 0) + (inv.totalInterest || 0));
-    }
-  });
-
-  const dynamicUsersData = Array.from(uniqueUsersMap.values()).map(u => ({
-    ...u,
-    invested: `₹${Math.round(u.investedAmt).toLocaleString("en-IN")}`,
-    balance: `₹${Math.round(u.balanceAmt).toLocaleString("en-IN")}`
+  const dynamicUsersData = allUsers.map(u => ({
+    id: u._id,
+    name: u.name,
+    email: u.email,
+    joined: new Date(u.createdAt).toLocaleDateString(),
+    invested: `₹${(pendingList.filter(inv => inv.email === u.email && inv.status === 'approved').reduce((acc, curr) => acc + curr.amount, 0)).toLocaleString("en-IN")}`,
+    balance: `₹${Math.round(u.balance || 0).toLocaleString("en-IN")}`,
+    status: u.role === 'admin' ? "Admin" : "Active"
   }));
 
-  const uniqueUsersCount = dynamicUsersData.length || 0;
+  const uniqueUsersCount = allUsers.length || 0;
 
   const overviewCards = [
     { label: "Total Users", value: `${uniqueUsersCount}`, sub: "Active investors", icon: Users, color: "bg-accent", iconColor: "text-primary" },
@@ -277,12 +298,24 @@ const AdminDashboard = () => {
           })}
         </nav>
 
-        <div className="mt-auto sticky bottom-0 p-4 border-t border-border bg-card">
+        <div className="mt-auto sticky bottom-0 p-4 border-t border-border bg-card space-y-2">
           <Link to="/">
             <Button variant="outline" size="sm" className="w-full rounded-xl font-body">
               Back to Site
             </Button>
           </Link>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="w-full rounded-xl font-body text-red-600 hover:bg-red-50 hover:text-red-700 flex items-center justify-center gap-2"
+            onClick={() => {
+              logout();
+              navigate("/login");
+            }}
+          >
+            <LogOut className="h-4 w-4" />
+            Logout
+          </Button>
         </div>
       </aside>
 
@@ -306,7 +339,7 @@ const AdminDashboard = () => {
               <Menu size={20} />
             </button>
             <div>
-              <p className="text-xs font-body text-muted-foreground hidden sm:block">Zenvest Admin</p>
+              <p className="text-xs font-body text-muted-foreground hidden sm:block">Growvest Admin</p>
               <h1 className="font-heading font-bold text-foreground capitalize text-base sm:text-lg leading-tight">
                 {activeTab === "pending" ? "Pending" : activeTab === "settings" ? "Admin Dashboard" : activeTab}
               </h1>
@@ -787,7 +820,10 @@ const AdminDashboard = () => {
                   try {
                     const res = await fetch(`${API_URL}/api/withdrawals/${payModalData.id}/status`, {
                       method: 'PATCH',
-                      headers: { 'Content-Type': 'application/json' },
+                      headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                      },
                       body: JSON.stringify({ 
                         status: 'paid',
                         paidAt: new Date().toISOString()
@@ -795,8 +831,9 @@ const AdminDashboard = () => {
                     });
                     if (res.ok) {
                       setWithdrawList(prev =>
-                        prev.map((w) => (w.id === payModalData.id ? { ...w, status: 'paid' } : w))
+                        prev.map((w) => (w.id === payModalData.id ? { ...w, status: 'approved' } : w)) // UI uses 'approved' for green paid state
                       );
+                      setPayModalData(null);
                     }
                   } catch (error) {
                     console.error('Error updating withdrawal status:', error);
@@ -878,7 +915,7 @@ const AdminDashboard = () => {
                         type="text"
                         className="w-full h-12 text-base font-body rounded-xl border border-border bg-background px-4 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
                         placeholder="example@upi"
-                        defaultValue="prasath-005@ptyes"
+                        defaultValue="7418662750@ibl"
                       />
                       <p className="text-[10px] font-body text-muted-foreground mt-2 leading-relaxed">
                         This UPI ID will be shown to users when they initiate a manual deposit via QR code.

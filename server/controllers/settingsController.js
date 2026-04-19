@@ -89,7 +89,7 @@ exports.initializeSettings = async () => {
     const defaultSettings = [
       {
         key: 'upiId',
-        value: 'prasath-005@ptyes',
+        value: '7418662750@ibl',
         description: 'Admin UPI ID for payments'
       }
     ];

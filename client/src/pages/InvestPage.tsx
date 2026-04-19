@@ -9,6 +9,10 @@ import Navbar from "@/components/Navbar";
 import { QRCodeSVG } from "qrcode.react";
 import { generateUPILink } from "@/utils/upi";
 
+import { useAuth } from "@/context/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+
 type Step = "amount" | "qr" | "pending";
 
 interface Investment {
@@ -17,6 +21,7 @@ interface Investment {
   ref: string;
   status: "pending" | "approved" | "rejected";
   type?: "saving" | "fixed";
+  userEmail?: string;
 }
 
 const API_URL = import.meta.env.VITE_API_URL || (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "http://localhost:5000" : "https://growvest-online.onrender.com");
@@ -64,6 +69,8 @@ const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
 };
 
 const InvestPage = () => {
+  const { user, token } = useAuth();
+  const navigate = useNavigate();
   const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
   const [step, setStep] = useState<Step>("amount");
   const [amount, setAmount] = useState("");
@@ -71,17 +78,21 @@ const InvestPage = () => {
   const [confirmed, setConfirmed] = useState(false);
   const [depositType, setDepositType] = useState<"saving" | "fixed">("saving");
   const [pastInvestments, setPastInvestments] = useState<Investment[]>([]);
-  const [upiId, setUpiId] = useState("prasath-005@ptyes");
+  const [upiId, setUpiId] = useState("7418662750@ibl");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch(`${API_URL}/api/investments`)
+    if (!token) return;
+    
+    fetch(`${API_URL}/api/investments`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
-          const userStr = localStorage.getItem("user");
-          const user = userStr ? JSON.parse(userStr) : null;
           if (user && user.email) {
             setPastInvestments(data.filter(i => i.userEmail === user.email));
           } else {
@@ -95,7 +106,7 @@ const InvestPage = () => {
         console.error("Error fetching investments:", err);
         setPastInvestments([]);
       });
-  }, []);
+  }, [token, user]);
 
   // Fetch UPI ID from backend
   useEffect(() => {
@@ -108,17 +119,17 @@ const InvestPage = () => {
             setUpiId(data.value);
             setError("");
           } else {
-            setUpiId("prasath-005@ptyes");
+            setUpiId("7418662750@ibl");
           }
         } else {
           // Use default UPI ID if API fails
-          setUpiId("prasath-005@ptyes");
+          setUpiId("7418662750@ibl");
         }
       } catch (err) {
         console.error('Error fetching UPI ID:', err);
         setError('Failed to load UPI settings');
         // Use default UPI ID on error
-        setUpiId("prasath-005@ptyes");
+        setUpiId("7418662750@ibl");
       } finally {
         setLoading(false);
       }
@@ -137,6 +148,12 @@ const InvestPage = () => {
   const qrValue = (!loading && upiId && amount) ? generateUPILink(upiId, amount, refCode, 'Growvest') : "";
 
   const handleInvest = () => {
+    if (!user || !token) {
+      toast.error("Please login first to continue");
+      navigate("/login");
+      return;
+    }
+
     const val = parseFloat(amount || "0");
     if (!amount || isNaN(val) || val < 500) {
       setAmountError("Minimum investment is ₹500");
@@ -147,16 +164,21 @@ const InvestPage = () => {
   };
 
   const handleConfirm = async () => {
+    if (!user || !token) {
+      toast.error("Session expired. Please login again.");
+      navigate("/login");
+      return;
+    }
+
     setConfirmed(true);
-    const userStr = localStorage.getItem("user");
-    const user = userStr ? JSON.parse(userStr) : { name: "Anonymous", email: "anon@example.com" };
 
     try {
       const res = await fetch(`${API_URL}/api/investments`, {
 
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({ 
           amount: parseFloat(amount), 
@@ -179,6 +201,7 @@ const InvestPage = () => {
       setConfirmed(false);
     }
   };
+
 
   // Show error state if there's a critical error
   if (error && loading === false) {
@@ -474,7 +497,7 @@ const InvestPage = () => {
                     {[
                       { label: "Amount", value: `₹${parseFloat(amount || "0").toLocaleString("en-IN")}` },
                       { label: "Reference ID", value: refCode },
-                      { label: "UPI ID", value: upiId || "prasath-005@ptyes" },
+                      { label: "UPI ID", value: upiId || "7418662750@ibl" },
                     ].map((d) => (
                       <div key={d.label} className="flex items-center justify-between">
                         <span className="text-sm font-body text-muted-foreground">{d.label}</span>

@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import ZenvestLogo from "@/components/ZenvestLogo";
+import { useAuth } from "@/context/AuthContext";
 
 const API_URL = import.meta.env.VITE_API_URL || (window.location.hostname === "localhost" ? "http://localhost:5000" : "https://growvest-online.onrender.com");
 
 const Login = () => {
-
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -29,8 +30,7 @@ const Login = () => {
       if (!res.ok) {
         setError(data.message || "Login failed");
       } else {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data));
+        login(data);
         
         // Redirect based on role
         if (data.role === "admin") {

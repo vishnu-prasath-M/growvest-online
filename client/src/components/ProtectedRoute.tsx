@@ -1,4 +1,5 @@
 import { Navigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -6,9 +7,11 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps) => {
-  const token = localStorage.getItem("token");
-  const userStr = localStorage.getItem("user");
-  const user = userStr ? JSON.parse(userStr) : null;
+  const { user, token, loading } = useAuth();
+
+  if (loading) {
+    return null; // Or a loading spinner
+  }
 
   if (!token || !user) {
     return <Navigate to="/login" replace />;

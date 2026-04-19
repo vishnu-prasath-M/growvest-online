@@ -28,6 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import ZenvestLogo from "@/components/ZenvestLogo";
+import { useAuth } from "@/context/AuthContext";
 
 /* ─── Shared Configurations ─────────────────────────── */
 // Removed mock investments
@@ -40,6 +41,7 @@ interface Investment {
   startDate: string;
   totalInterest: number;
   interestRate: number;
+  userEmail?: string;
 }
 
 // Static transaction mock removed
@@ -80,6 +82,7 @@ const navItems: { label: string; tab: NavTab }[] = [
 
 /* ─── Component ────────────────────────────────────── */
 const UserDashboard = () => {
+  const { user: authUser, token, logout } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<NavTab>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -101,72 +104,55 @@ const UserDashboard = () => {
   const [totalWithdrawn, setTotalWithdrawn] = useState<number>(0);
   const [dismissedPaidSuccess, setDismissedPaidSuccess] = useState(false);
   const [showWithdrawSuccess, setShowWithdrawSuccess] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [dbUser, setDbUser] = useState<any>(null);
   const [userLoading, setUserLoading] = useState(true);
   const [userError, setUserError] = useState("");
 
-  const userStr = localStorage.getItem("user");
-  const token = localStorage.getItem("token");
-  let localUser = { name: "", email: "" };
-  try {
-    if (userStr && userStr !== "null" && userStr !== "undefined") {
-      localUser = JSON.parse(userStr);
+  // Role-based navigation guard
+  useEffect(() => {
+    if (authUser && authUser.role === 'admin') {
+      navigate('/admin');
     }
-  } catch (e) {
-    console.error("Error parsing user from localStorage", e);
-  }
+  }, [authUser, navigate]);
 
   // Verify user exists in DB
   useEffect(() => {
-    if (!localUser.email || !token) {
+    if (!authUser || !token) {
       setUserError("Please log in to continue");
       setUserLoading(false);
       return;
     }
 
-    fetch(`${API_URL}/api/users/email/${localUser.email}`, {
+    fetch(`${API_URL}/api/users/email/${authUser.email}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => {
-        if (res.status === 404) {
-          // User not found in DB - clear local storage
-          localStorage.removeItem("user");
-          localStorage.removeItem("token");
-          setUserError("User not found. Please log in or sign up.");
-          throw new Error("User not found");
+        if (!res.ok) {
+          if (res.status === 404) {
+             throw new Error("User not found in database");
+          }
+          throw new Error("Failed to fetch user data");
         }
-        if (!res.ok) throw new Error("Failed to fetch user");
         return res.json();
       })
       .then(data => {
         if (data && data.email) {
-          setUser(data);
-          // Update localStorage with fresh data from DB
-          localStorage.setItem("user", JSON.stringify({
-            _id: data._id,
-            name: data.name,
-            email: data.email,
-            token: token
-          }));
+          setDbUser(data);
         } else {
-          setUserError("User not found. Please log in or sign up.");
+          setUserError("User data is incomplete. Please log in again.");
         }
       })
       .catch(err => {
         console.error("Error verifying user:", err);
-        if (err.message === "User not found") {
-          setUserError("User not found. Please log in or sign up.");
-        } else {
-          setUserError("Failed to load user data. Please try again.");
-        }
+        setUserError(err.message || "Failed to load user data. Please try again.");
       })
       .finally(() => {
         setUserLoading(false);
       });
-  }, []);
+  }, [authUser, token, logout]);
 
-  const initials = user?.name ? String(user.name).charAt(0).toUpperCase() : "U";
-  const userEmail = user?.email || "";
+  const initials = dbUser?.name ? String(dbUser.name).charAt(0).toUpperCase() : "U";
+  const userEmail = dbUser?.email || "";
 
 
   // Use backend-calculated values (no frontend calculations)
@@ -187,9 +173,11 @@ const UserDashboard = () => {
 
 
   useEffect(() => {
-    if (!userEmail) return;
+    if (!userEmail || !token) return;
 
-    fetch(`${API_URL}/api/investments`)
+    fetch(`${API_URL}/api/investments`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) setInvestments(data.filter(i => i.userEmail === userEmail));
@@ -200,7 +188,9 @@ const UserDashboard = () => {
         setInvestments([]);
       });
 
-    fetch(`${API_URL}/api/withdrawals`)
+    fetch(`${API_URL}/api/withdrawals`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) setWithdrawals(data.filter(w => w.userEmail === userEmail));
@@ -213,7 +203,9 @@ const UserDashboard = () => {
 
     // Fetch transactions
     setTransactionsLoading(true);
-    fetch(`${API_URL}/api/transactions/user/${userEmail}`)
+    fetch(`${API_URL}/api/transactions/user/${userEmail}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
@@ -230,7 +222,7 @@ const UserDashboard = () => {
         setTransactions([]);
         setTransactionsLoading(false);
       });
-  }, [userEmail]);
+  }, [userEmail, token]);
 
   // Automatic dismissal for "Withdraw Successful" message
   useEffect(() => {
@@ -247,7 +239,9 @@ const UserDashboard = () => {
     if (withdrawDone || isPaidWithdrawal) {
       // Refresh all data to get updated balance
       const refreshData = () => {
-        fetch(`${API_URL}/api/investments`)
+        fetch(`${API_URL}/api/investments`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
           .then(res => res.json())
           .then(data => {
             if (Array.isArray(data)) setInvestments(data.filter(i => i.userEmail === userEmail));
@@ -258,7 +252,9 @@ const UserDashboard = () => {
             setInvestments([]);
           });
 
-        fetch(`${API_URL}/api/withdrawals`)
+        fetch(`${API_URL}/api/withdrawals`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
           .then(res => res.json())
           .then(data => {
             if (Array.isArray(data)) setWithdrawals(data.filter(w => w.userEmail === userEmail));
@@ -278,8 +274,10 @@ const UserDashboard = () => {
 
   // Fetch user balance from backend
   useEffect(() => {
-    if (userEmail) {
-      fetch(`${API_URL}/api/users/email/${userEmail}`)
+    if (userEmail && token) {
+      fetch(`${API_URL}/api/users/email/${userEmail}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
         .then(res => res.json())
         .then(data => {
           if (data && typeof data.balance === 'number') {
@@ -296,7 +294,7 @@ const UserDashboard = () => {
           console.error('Error fetching user balance:', err);
         });
     }
-  }, [userEmail, withdrawDone, isPaidWithdrawal]);
+  }, [userEmail, token, withdrawDone, isPaidWithdrawal]);
 
   // Transform transactions from backend for display
   const displayTransactions = transactions.map(t => ({
@@ -310,8 +308,11 @@ const UserDashboard = () => {
 
   // Refresh transactions function
   const refreshTransactions = () => {
+    if (!token) return;
     setTransactionsLoading(true);
-    fetch(`${API_URL}/api/transactions/user/${userEmail}`)
+    fetch(`${API_URL}/api/transactions/user/${userEmail}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
@@ -449,8 +450,7 @@ const UserDashboard = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
+    logout();
     navigate('/login');
   };
 
@@ -467,7 +467,7 @@ const UserDashboard = () => {
   }
 
   // Show error if user not found or not authenticated
-  if (userError || !user) {
+  if (userError || (!userLoading && !dbUser)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-4">
         <div className="text-center max-w-sm">
@@ -562,8 +562,8 @@ const UserDashboard = () => {
             {initials}
           </div>
           <div>
-            <p className="text-sm font-body font-medium text-foreground">{user?.name || "User"}</p>
-            <p className="text-xs font-body text-muted-foreground">{user?.email || "user@example.com"}</p>
+            <p className="text-sm font-body font-medium text-foreground">{dbUser?.name || "User"}</p>
+            <p className="text-xs font-body text-muted-foreground">{dbUser?.email || "user@example.com"}</p>
           </div>
         </div>
         <nav className="flex-1 p-4 space-y-2">
@@ -616,9 +616,9 @@ const UserDashboard = () => {
               <Menu size={20} className="text-foreground" />
             </button>
             <div>
-              <p className="text-xs font-body text-muted-foreground hidden sm:block">Good morning</p>
+              <p className="text-xs font-body text-muted-foreground hidden sm:block">Hello!..</p>
               <h1 className="font-heading text-base sm:text-lg text-foreground font-bold leading-tight flex items-center gap-2">
-                {user?.name || "User"}
+                {dbUser?.name || "User"}
                 {depositBadge && (
                   <span className="text-[10px] bg-secondary/10 text-secondary border border-secondary/20 px-2 py-0.5 rounded-full whitespace-nowrap">
                     {depositBadge}
@@ -1212,11 +1212,14 @@ const UserDashboard = () => {
                           try {
                             const res = await fetch(`${API_URL}/api/withdrawals`, {
                               method: "POST",
-                              headers: { "Content-Type": "application/json" },
+                              headers: { 
+                                "Content-Type": "application/json",
+                                "Authorization": `Bearer ${token}`
+                              },
                               body: JSON.stringify({
                                 amount: parseFloat(withdrawAmount),
                                 upiId: upiId,
-                                userName: user?.name || "User",
+                                userName: dbUser?.name || "User",
                                 userEmail: userEmail,
                                 withdrawType: withdrawType
                               })

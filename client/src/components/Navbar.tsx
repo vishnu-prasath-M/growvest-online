@@ -3,8 +3,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { Menu, X, ArrowRight, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ZenvestLogo from "./ZenvestLogo";
+import { useAuth } from "@/context/AuthContext";
 
 const Navbar = () => {
+  const { user, token } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -24,16 +26,12 @@ const Navbar = () => {
 
   const handleInvestClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    const token = localStorage.getItem("token");
     if (!token) {
       setShowLoginModal(true);
     } else {
       navigate("/invest");
     }
   };
-
-  const userStr = localStorage.getItem("user");
-  const user = userStr ? JSON.parse(userStr) : null;
 
   return (
     <nav
@@ -67,7 +65,7 @@ const Navbar = () => {
             Invest
           </button>
           {user ? (
-            <Link to="/dashboard">
+            <Link to={user.role === "admin" ? "/admin" : "/dashboard"}>
               <Button size="sm" className="group rounded-xl font-body font-medium px-5">
                 Dashboard
                 <ArrowRight className="ml-1.5 h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -112,7 +110,7 @@ const Navbar = () => {
               Invest
             </button>
             {user ? (
-              <Link to="/dashboard" className="col-span-2">
+              <Link to={user.role === "admin" ? "/admin" : "/dashboard"} className="col-span-2">
                 <Button className="w-full rounded-xl" size="sm">
                   Dashboard
                 </Button>

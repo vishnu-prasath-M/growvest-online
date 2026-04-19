@@ -81,3 +81,23 @@ exports.loginUser = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+exports.getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    if (user) {
+      res.json({
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        balance: user.balance
+      });
+    } else {
+      res.status(404).json({ message: 'User not found' });
+    }
+  } catch (error) {
+    console.error('GetMe error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
