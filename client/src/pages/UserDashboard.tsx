@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
 import {
@@ -80,6 +80,7 @@ const navItems: { label: string; tab: NavTab }[] = [
 
 /* ─── Component ────────────────────────────────────── */
 const UserDashboard = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<NavTab>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
@@ -449,7 +450,8 @@ const UserDashboard = () => {
 
   const handleLogout = () => {
     localStorage.removeItem('user');
-    window.location.href = '/login';
+    localStorage.removeItem('token');
+    navigate('/login');
   };
 
   // Show loading state while verifying user
@@ -476,13 +478,13 @@ const UserDashboard = () => {
           <p className="text-muted-foreground font-body mb-6">Please log in or create an account to continue.</p>
           <div className="flex gap-3 justify-center">
             <button
-              onClick={() => window.location.href = '/login'}
+              onClick={() => navigate('/login')}
               className="px-6 py-2 bg-primary text-white rounded-xl font-body font-medium hover:bg-primary/90 transition-colors"
             >
               Log In
             </button>
             <button
-              onClick={() => window.location.href = '/register'}
+              onClick={() => navigate('/register')}
               className="px-6 py-2 border border-border rounded-xl font-body font-medium hover:bg-accent transition-colors"
             >
               Sign Up

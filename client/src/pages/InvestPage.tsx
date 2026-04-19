@@ -51,7 +51,7 @@ const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
           <div className="text-center max-w-md mx-auto">
             <h2 className="font-heading text-2xl text-foreground mb-4">Something went wrong</h2>
             <p className="text-muted-foreground font-body mb-6">{errorMessage}</p>
-            <Button onClick={() => window.location.reload()} className="rounded-xl font-body">
+            <Button onClick={() => { setHasError(false); setErrorMessage(""); }} className="rounded-xl font-body">
               Reload Page
             </Button>
           </div>
@@ -188,7 +188,7 @@ const InvestPage = () => {
         <div className="container py-12 max-w-5xl">
           <div className="text-center max-w-md mx-auto">
             <p className="text-destructive font-body mb-4">{error}</p>
-            <Button onClick={() => window.location.reload()} className="rounded-xl font-body">
+            <Button onClick={() => { setError(""); setLoading(true); }} className="rounded-xl font-body">
               Retry
             </Button>
           </div>
