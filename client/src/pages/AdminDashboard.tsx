@@ -220,7 +220,11 @@ const AdminDashboard = () => {
     .filter(u => u.role !== 'admin')
     .reduce((acc, u) => acc + (u.balance || 0), 0);
   const totalPayableStr = `₹${totalPayableBalance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const totalReturnsStr = `₹${Math.round(pendingList.filter(i => i?.status === 'approved').reduce((acc, curr) => acc + (curr?.totalInterest || 0), 0)).toLocaleString("en-IN")}`;
+  // Total interest earned by ALL users across all approved investments
+  const totalInterestEarned = pendingList
+    .filter(i => i?.status === 'approved')
+    .reduce((acc, curr) => acc + (curr?.totalInterest || 0), 0);
+  const totalReturnsStr = `₹${totalInterestEarned.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const dynamicUsersData = allUsers.map(u => ({
     id: u._id,

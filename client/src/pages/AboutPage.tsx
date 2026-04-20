@@ -416,7 +416,7 @@ const AboutPage = () => {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="rounded-xl font-body font-medium px-10 h-12 border-background/20 text-background hover:bg-background/10 hover:text-background"
+                  className="rounded-xl font-body font-medium px-10 h-12 border-background/60 bg-background/10 text-background hover:bg-background/20 hover:text-background hover:border-background/80"
                 >
                   Invest Now
                 </Button>

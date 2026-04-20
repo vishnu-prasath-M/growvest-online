@@ -12,6 +12,7 @@ import InvestPage from "./pages/InvestPage";
 import AboutPage from "./pages/AboutPage";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ScrollToTop from "./components/ScrollToTop";
 
 import { useAuth } from "./context/AuthContext";
 
@@ -35,6 +36,7 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <ScrollToTop />
           <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
