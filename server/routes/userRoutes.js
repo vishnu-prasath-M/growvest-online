@@ -6,7 +6,13 @@ const { protect, admin } = require('../middleware/authMiddleware');
 // GET /api/users - Get all users (Admin only)
 router.get('/', protect, admin, userController.getAllUsers);
 
-// GET /api/users/email/:email - Get user by email
+// GET /api/users/admin/total-balance - Get total payable balance (Admin only)
+router.get('/admin/total-balance', protect, admin, userController.getTotalPayableBalance);
+
+// GET /api/users/detail/:email - Get detailed user info for admin dropdown (Admin only)
+router.get('/detail/:email', protect, admin, userController.getUserDetailByEmail);
+
+// GET /api/users/email/:email - Get user by email (used by user dashboard)
 router.get('/email/:email', userController.getUserByEmail);
 
 // PUT /api/users/email/:email/balance - Update user balance

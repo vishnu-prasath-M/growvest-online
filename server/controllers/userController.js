@@ -2,23 +2,20 @@ const User = require('../models/User');
 const Investment = require('../models/Investment');
 const Withdrawal = require('../models/Withdrawal');
 
-// Helper function to calculate months between dates
-const calculateMonths = (startDate) => {
-  const start = new Date(startDate);
+// Helper function to calculate daily interest for an investment
+// Formula: (currentBalance * rate%) / 365 * daysSinceStart
+// Uses full precision (no rounding) so paisa-level values are preserved
+const calculateDailyInterest = (investment) => {
+  const start = new Date(investment.startDate);
   const now = new Date();
-  const months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
-  return Math.max(0, months);
-};
-
-// Helper function to calculate interest for an investment
-const calculateInterest = (investment) => {
-  const months = calculateMonths(investment.startDate);
+  const diffTime = Math.max(0, now - start);
+  const diffDays = diffTime / (1000 * 60 * 60 * 24); // fractional days for precision
   const rate = investment.interestRate || (investment.type === 'saving' ? 7 : 12);
-  const interest = (investment.amount * rate * months) / 100 / 12;
-  return Math.round(interest);
+  const dailyRate = (investment.amount * rate) / 100 / 365;
+  return dailyRate * diffDays; // full precision, no rounding
 };
 
-// Get user balances - CORRECT CALCULATION
+// Get user balances – CORRECT DAILY CALCULATION
 exports.getUserByEmail = async (req, res) => {
   try {
     const { email } = req.params;
@@ -47,23 +44,23 @@ exports.getUserByEmail = async (req, res) => {
     const savingWithdrawals = withdrawals.filter(wd => wd.withdrawType === 'saving');
     const fixedWithdrawals = withdrawals.filter(wd => wd.withdrawType === 'fixed');
 
-    // Calculate totals for SAVING
+    // Calculate totals for SAVING (daily interest, full precision)
     const savingInvested = savingInvestments.reduce((acc, inv) => acc + inv.amount, 0);
-    const savingInterest = savingInvestments.reduce((acc, inv) => acc + calculateInterest(inv), 0);
+    const savingInterest = savingInvestments.reduce((acc, inv) => acc + calculateDailyInterest(inv), 0);
     const savingWithdrawn = savingWithdrawals.reduce((acc, wd) => acc + wd.amount, 0);
     let savingBalance = savingInvested + savingInterest - savingWithdrawn;
-    if (savingBalance < 0) savingBalance = 0; // Prevent negative
+    if (savingBalance < 0) savingBalance = 0;
 
-    // Calculate totals for FIXED
+    // Calculate totals for FIXED (daily interest, full precision)
     const fixedInvested = fixedInvestments.reduce((acc, inv) => acc + inv.amount, 0);
-    const fixedInterest = fixedInvestments.reduce((acc, inv) => acc + calculateInterest(inv), 0);
+    const fixedInterest = fixedInvestments.reduce((acc, inv) => acc + calculateDailyInterest(inv), 0);
     const fixedWithdrawn = fixedWithdrawals.reduce((acc, wd) => acc + wd.amount, 0);
     let fixedBalance = fixedInvested + fixedInterest - fixedWithdrawn;
-    if (fixedBalance < 0) fixedBalance = 0; // Prevent negative
+    if (fixedBalance < 0) fixedBalance = 0;
 
     // Total balance
     let totalBalance = savingBalance + fixedBalance;
-    if (totalBalance < 0) totalBalance = 0; // Prevent negative
+    if (totalBalance < 0) totalBalance = 0;
 
     // Total calculations
     const totalInvested = savingInvested + fixedInvested;
@@ -94,6 +91,92 @@ exports.getUserByEmail = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching user', error: error.message });
+  }
+};
+
+// Get detailed user data for admin dropdown
+exports.getUserDetailByEmail = async (req, res) => {
+  try {
+    const { email } = req.params;
+
+    const user = await User.findOne({ email }).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const investments = await Investment.find({ userEmail: email, status: 'approved' });
+    const withdrawals = await Withdrawal.find({ userEmail: email, status: 'paid' });
+
+    const savingInvestments = investments.filter(inv => inv.type === 'saving');
+    const fixedInvestments = investments.filter(inv => inv.type === 'fixed');
+    const savingWithdrawals = withdrawals.filter(wd => wd.withdrawType === 'saving');
+    const fixedWithdrawals = withdrawals.filter(wd => wd.withdrawType === 'fixed');
+
+    const savingInvested = savingInvestments.reduce((acc, inv) => acc + inv.amount, 0);
+    const savingInterest = savingInvestments.reduce((acc, inv) => acc + calculateDailyInterest(inv), 0);
+    const savingWithdrawn = savingWithdrawals.reduce((acc, wd) => acc + wd.amount, 0);
+    const savingBalance = Math.max(0, savingInvested + savingInterest - savingWithdrawn);
+
+    const fixedInvested = fixedInvestments.reduce((acc, inv) => acc + inv.amount, 0);
+    const fixedInterest = fixedInvestments.reduce((acc, inv) => acc + calculateDailyInterest(inv), 0);
+    const fixedWithdrawn = fixedWithdrawals.reduce((acc, wd) => acc + wd.amount, 0);
+    const fixedBalance = Math.max(0, fixedInvested + fixedInterest - fixedWithdrawn);
+
+    const totalInvested = savingInvested + fixedInvested;
+    const totalInterest = savingInterest + fixedInterest;
+    const totalBalance = savingBalance + fixedBalance;
+
+    res.status(200).json({
+      user,
+      totalInvested,
+      totalEarnings: totalInterest,
+      currentBalance: totalBalance,
+      saving: {
+        invested: savingInvested,
+        interest: savingInterest,
+        withdrawn: savingWithdrawn,
+        balance: savingBalance,
+        count: savingInvestments.length
+      },
+      fixed: {
+        invested: fixedInvested,
+        interest: fixedInterest,
+        withdrawn: fixedWithdrawn,
+        balance: fixedBalance,
+        count: fixedInvestments.length
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching user detail', error: error.message });
+  }
+};
+
+// Admin: Get total payable balance across all users
+exports.getTotalPayableBalance = async (req, res) => {
+  try {
+    const investments = await Investment.find({ status: 'approved' });
+    const withdrawals = await Withdrawal.find({ status: 'paid' });
+
+    let totalPayable = 0;
+
+    // Get unique emails from investments
+    const emails = [...new Set(investments.map(inv => inv.userEmail))];
+
+    for (const email of emails) {
+      const userInvestments = investments.filter(inv => inv.userEmail === email);
+      const userWithdrawals = withdrawals.filter(wd => wd.userEmail === email);
+
+      const totalInvested = userInvestments.reduce((acc, inv) => acc + inv.amount, 0);
+      const totalInterest = userInvestments.reduce((acc, inv) => acc + calculateDailyInterest(inv), 0);
+      const totalWithdrawn = userWithdrawals.reduce((acc, wd) => acc + wd.amount, 0);
+
+      const userBalance = Math.max(0, totalInvested + totalInterest - totalWithdrawn);
+      totalPayable += userBalance;
+    }
+
+    res.status(200).json({ totalPayableBalance: totalPayable });
+  } catch (error) {
+    res.status(500).json({ message: 'Error calculating total payable balance', error: error.message });
   }
 };
 

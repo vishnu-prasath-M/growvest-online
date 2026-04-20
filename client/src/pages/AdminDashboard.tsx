@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Users,
   DollarSign,
@@ -20,14 +20,6 @@ import ZenvestLogo from "@/components/ZenvestLogo";
 import { Button } from "@/components/ui/button";
 import { generateUPILink } from "@/utils/upi";
 import { QRCodeSVG } from "qrcode.react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useAuth } from "@/context/AuthContext";
 
 const API_URL = import.meta.env.VITE_API_URL || (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "http://localhost:5000" : "https://growvest-online.onrender.com");
@@ -101,6 +93,9 @@ const AdminDashboard = () => {
   const [payModalData, setPayModalData] = useState<WithdrawReq | null>(null);
   const [withdrawList, setWithdrawList] = useState<WithdrawReq[]>([]);
   const [allUsers, setAllUsers] = useState<UserData[]>([]);
+  const [totalPayableBalance, setTotalPayableBalance] = useState<number>(0);
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
+  const [userDetails, setUserDetails] = useState<Record<string, any>>({});
 
   useEffect(() => {
     if (authUser && authUser.role !== 'admin') {
@@ -164,6 +159,18 @@ const AdminDashboard = () => {
           }
         })
         .catch(err => console.error("Error fetching users:", err));
+
+      // Fetch total payable balance
+      fetch(`${API_URL}/api/users/admin/total-balance`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data && typeof data.totalPayableBalance === 'number') {
+            setTotalPayableBalance(data.totalPayableBalance);
+          }
+        })
+        .catch(err => console.error("Error fetching total payable balance:", err));
     };
 
     fetchAll();
@@ -220,8 +227,8 @@ const AdminDashboard = () => {
   const pendingCount = pendingList.filter((i) => i.status === "pending").length;
   const wdPendingCount = withdrawList.filter((w) => w.status === "pending").length;
 
-  const totalInvestedStr = `₹${pendingList.filter(i => i?.status === 'approved').reduce((acc, curr) => acc + (curr?.amount || 0), 0).toLocaleString("en-IN")}`;
   const totalReturnsStr = `₹${Math.round(pendingList.filter(i => i?.status === 'approved').reduce((acc, curr) => acc + (curr?.totalInterest || 0), 0)).toLocaleString("en-IN")}`;
+  const totalPayableStr = `₹${totalPayableBalance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   
   const dynamicUsersData = allUsers.map(u => ({
@@ -234,11 +241,32 @@ const AdminDashboard = () => {
     status: u.role === 'admin' ? "Admin" : "Active"
   }));
 
+  // Fetch user detail on expand (lazy load, cached)
+  const handleExpandUser = async (userId: string, email: string) => {
+    if (expandedUserId === userId) {
+      setExpandedUserId(null);
+      return;
+    }
+    setExpandedUserId(userId);
+    if (userDetails[userId]) return; // already loaded
+    try {
+      const res = await fetch(`${API_URL}/api/users/detail/${encodeURIComponent(email)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUserDetails(prev => ({ ...prev, [userId]: data }));
+      }
+    } catch (err) {
+      console.error('Error fetching user detail:', err);
+    }
+  };
+
   const uniqueUsersCount = allUsers.length || 0;
 
   const overviewCards = [
     { label: "Total Users", value: `${uniqueUsersCount}`, sub: "Active investors", icon: Users, color: "bg-accent", iconColor: "text-primary" },
-    { label: "Total Invested", value: totalInvestedStr, sub: "Across all users", icon: DollarSign, color: "bg-secondary/10", iconColor: "text-secondary" },
+    { label: "Total Payable Balance", value: totalPayableStr, sub: "Outstanding to users", icon: DollarSign, color: "bg-secondary/10", iconColor: "text-secondary" },
     { label: "Pending Approvals", value: `${pendingCount}`, sub: "Requires action", icon: Clock, color: "bg-amber-50", iconColor: "text-amber-600" },
     { label: "Total Returns", value: totalReturnsStr, sub: "Accumulated ROI", icon: TrendingUp, color: "bg-accent", iconColor: "text-primary" },
   ];
@@ -556,45 +584,136 @@ const AdminDashboard = () => {
               <div className="mb-6">
                 <h2 className="font-heading text-2xl text-foreground">All Users</h2>
                 <p className="text-sm font-body text-muted-foreground mt-0.5">
-                  {dynamicUsersData.length} registered investors
+                  {dynamicUsersData.length} registered investors · Click a user to view details
                 </p>
               </div>
-              <div className="card-premium overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="font-body font-semibold">Name</TableHead>
-                      <TableHead className="font-body font-semibold">Email</TableHead>
-                      <TableHead className="font-body font-semibold">Joined</TableHead>
-                      <TableHead className="font-body font-semibold">Total Invested</TableHead>
-                      <TableHead className="font-body font-semibold">Balance</TableHead>
-                      <TableHead className="font-body font-semibold">Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {dynamicUsersData.map((u) => (
-                      <TableRow key={u.id}>
-                        <TableCell className="font-body font-semibold text-sm">
-                          <div className="flex items-center gap-2.5">
-                            <div className="h-8 w-8 rounded-full bg-accent border border-border flex items-center justify-center text-xs font-heading font-bold text-primary">
-                              {u.name.charAt(0)}
-                            </div>
-                            {u.name}
+              <div className="space-y-3">
+                {dynamicUsersData.map((u) => {
+                  const isExpanded = expandedUserId === u.id;
+                  const detail = userDetails[u.id];
+                  const fmtCur = (v: number) => v?.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? "0.00";
+                  return (
+                    <motion.div key={u.id} layout className="card-premium overflow-hidden">
+                      {/* Row (clickable) */}
+                      <button
+                        onClick={() => handleExpandUser(u.id, u.email)}
+                        className="w-full px-4 sm:px-6 py-4 flex items-center justify-between gap-4 text-left hover:bg-muted/30 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="h-9 w-9 rounded-full bg-accent border border-border flex items-center justify-center text-xs font-heading font-bold text-primary shrink-0">
+                            {u.name.charAt(0)}
                           </div>
-                        </TableCell>
-                        <TableCell className="font-body text-sm text-muted-foreground">{u.email}</TableCell>
-                        <TableCell className="font-body text-sm text-muted-foreground">{u.joined}</TableCell>
-                        <TableCell className="font-body text-sm font-semibold text-foreground">{u.invested}</TableCell>
-                        <TableCell className="font-body text-sm font-semibold text-secondary">{u.balance}</TableCell>
-                        <TableCell>
+                          <div className="min-w-0">
+                            <p className="text-sm font-body font-semibold text-foreground truncate">{u.name}</p>
+                            <p className="text-xs font-body text-muted-foreground truncate">{u.email}</p>
+                          </div>
+                        </div>
+                        <div className="hidden sm:flex items-center gap-6 text-right shrink-0">
+                          <div>
+                            <p className="text-[10px] font-body text-muted-foreground">Balance</p>
+                            <p className="text-sm font-body font-bold text-secondary">{u.balance}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-body text-muted-foreground">Joined</p>
+                            <p className="text-xs font-body text-foreground">{u.joined}</p>
+                          </div>
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-body font-medium border ${statusStyle[u.status]}`}>
                             {u.status}
                           </span>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                        </div>
+                        <div className={`shrink-0 ml-2 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>
+                          <svg className="h-4 w-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </button>
+
+                      {/* Expanded detail */}
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.28, ease: 'easeInOut' }}
+                            className="overflow-hidden"
+                          >
+                            <div className="border-t border-border px-4 sm:px-6 py-5 bg-accent/30">
+                              {!detail ? (
+                                <div className="flex items-center gap-3 py-2">
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
+                                  <p className="text-sm font-body text-muted-foreground">Loading user details...</p>
+                                </div>
+                              ) : (
+                                <>
+                                  {/* Summary row */}
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
+                                    {[
+                                      { label: "Current Balance", value: `₹${fmtCur(detail.currentBalance)}`, color: "text-primary" },
+                                      { label: "Total Invested", value: `₹${fmtCur(detail.totalInvested)}`, color: "text-foreground" },
+                                      { label: "Total Earnings", value: `₹${fmtCur(detail.totalEarnings)}`, color: "text-secondary" },
+                                      { label: "Email", value: u.email, color: "text-muted-foreground" },
+                                    ].map((s) => (
+                                      <div key={s.label}>
+                                        <p className="text-[10px] font-body text-muted-foreground uppercase tracking-wider mb-1">{s.label}</p>
+                                        <p className={`text-sm font-body font-bold ${s.color} break-all`}>{s.value}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+
+                                  {/* Deposit type breakdown */}
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {/* Saving */}
+                                    <div className="rounded-xl border border-border bg-card p-4">
+                                      <div className="flex items-center justify-between mb-3">
+                                        <p className="text-xs font-body font-semibold text-muted-foreground uppercase tracking-wider">Saving Deposit</p>
+                                        <span className="text-xs font-body font-bold text-primary bg-primary/5 border border-primary/10 px-2 py-0.5 rounded-full">7% / yr</span>
+                                      </div>
+                                      <div className="space-y-2">
+                                        {[
+                                          { label: "Invested", value: `₹${fmtCur(detail.saving?.invested ?? 0)}` },
+                                          { label: "Interest Earned", value: `₹${fmtCur(detail.saving?.interest ?? 0)}` },
+                                          { label: "Withdrawn", value: `₹${fmtCur(detail.saving?.withdrawn ?? 0)}` },
+                                          { label: "Current Balance", value: `₹${fmtCur(detail.saving?.balance ?? 0)}`, bold: true },
+                                        ].map(r => (
+                                          <div key={r.label} className="flex justify-between text-xs font-body">
+                                            <span className="text-muted-foreground">{r.label}</span>
+                                            <span className={r.bold ? "font-bold text-secondary" : "text-foreground"}>{r.value}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                    {/* Fixed */}
+                                    <div className="rounded-xl border border-border bg-card p-4">
+                                      <div className="flex items-center justify-between mb-3">
+                                        <p className="text-xs font-body font-semibold text-muted-foreground uppercase tracking-wider">Fixed Deposit</p>
+                                        <span className="text-xs font-body font-bold text-secondary bg-secondary/5 border border-secondary/10 px-2 py-0.5 rounded-full">12% / yr</span>
+                                      </div>
+                                      <div className="space-y-2">
+                                        {[
+                                          { label: "Invested", value: `₹${fmtCur(detail.fixed?.invested ?? 0)}` },
+                                          { label: "Interest Earned", value: `₹${fmtCur(detail.fixed?.interest ?? 0)}` },
+                                          { label: "Withdrawn", value: `₹${fmtCur(detail.fixed?.withdrawn ?? 0)}` },
+                                          { label: "Current Balance", value: `₹${fmtCur(detail.fixed?.balance ?? 0)}`, bold: true },
+                                        ].map(r => (
+                                          <div key={r.label} className="flex justify-between text-xs font-body">
+                                            <span className="text-muted-foreground">{r.label}</span>
+                                            <span className={r.bold ? "font-bold text-secondary" : "text-foreground"}>{r.value}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  );
+                })}
               </div>
             </motion.div>
           )}

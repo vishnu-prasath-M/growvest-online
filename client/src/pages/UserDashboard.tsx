@@ -62,9 +62,15 @@ type NavTab = "overview" | "investments" | "history" | "withdraw";
 const API_URL = import.meta.env.VITE_API_URL || (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "http://localhost:5000" : "https://growvest-online.onrender.com");
 
 const safeCurrency = (val: any) => {
-
   const num = typeof val === 'number' ? val : parseFloat(val);
   return isNaN(num) ? "0" : num.toLocaleString("en-IN");
+};
+
+// Format with 2 decimal places for paisa precision (earnings, interest)
+const safeDecimal = (val: any) => {
+  const num = typeof val === 'number' ? val : parseFloat(val);
+  if (isNaN(num)) return "0.00";
+  return num.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 const safeDate = (dateVal: any) => {
@@ -359,8 +365,8 @@ const UserDashboard = () => {
     },
     {
       label: "Total Earnings",
-      value: `₹${safeCurrency(Math.round(totalInterest || 0))}`,
-      sub: `Combined interest earned`,
+      value: `₹${safeDecimal(totalInterest || 0)}`,
+      sub: `Daily interest earned`,
       positive: true,
       icon: TrendingUp,
       color: "bg-secondary/10",
@@ -368,7 +374,7 @@ const UserDashboard = () => {
     },
     {
       label: "Current Balance",
-      value: investments.length === 0 ? "₹0" : `₹${safeCurrency(Math.round(currentBalance || 0))}`,
+      value: investments.length === 0 ? "₹0.00" : `₹${safeDecimal(currentBalance || 0)}`,
 
 
       sub: "Available to view",

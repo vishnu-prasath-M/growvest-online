@@ -9,6 +9,7 @@ import Register from "./pages/Register";
 import UserDashboard from "./pages/UserDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import InvestPage from "./pages/InvestPage";
+import AboutPage from "./pages/AboutPage";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -47,6 +48,7 @@ const App = () => {
             } 
           />
           <Route path="/invest" element={<InvestPage />} />
+          <Route path="/about" element={<AboutPage />} />
           <Route 
             path="/admin" 
             element={

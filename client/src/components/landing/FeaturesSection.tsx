@@ -13,7 +13,7 @@ const features = [
   {
     tag: "Returns",
     title: "Transparent return calculations",
-    desc: "No black boxes. Your monthly returns are calculated clearly and shown in full detail — you always know what you earned and why.",
+    desc: "No black boxes. Your Daily returns are calculated clearly and shown in full detail — you always know what you earned and why.",
     accent: "hsl(142 65% 36%)",
     accentBg: "hsl(142 65% 36% / 0.06)",
   },

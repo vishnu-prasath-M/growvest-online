@@ -155,8 +155,8 @@ const InvestPage = () => {
     }
 
     const val = parseFloat(amount || "0");
-    if (!amount || isNaN(val) || val < 500) {
-      setAmountError("Minimum investment is ₹500");
+    if (!amount || isNaN(val) || val < 1) {
+      setAmountError("Minimum investment is ₹1");
       return;
     }
     setAmountError("");
@@ -245,7 +245,7 @@ const InvestPage = () => {
           </Link>
           <h1 className="font-heading text-3xl md:text-4xl text-foreground">Make an Investment</h1>
           <p className="text-muted-foreground font-body mt-2">
-            Enter your amount, pay via QR, and our team will verify within 24 hours.
+            Enter your amount, pay via QR, and our team will verify within 2 hours.
           </p>
         </div>
 
@@ -290,7 +290,7 @@ const InvestPage = () => {
                 >
                   <h2 className="font-heading text-2xl text-foreground mb-1">Investment Amount</h2>
                   <p className="text-sm font-body text-muted-foreground mb-8">
-                    Enter how much you'd like to invest. Minimum ₹500.
+                    Enter how much you'd like to invest. Minimum ₹1.
                   </p>
 
                   <div className="space-y-5">
@@ -372,14 +372,14 @@ const InvestPage = () => {
                       ))}
                     </div>
 
-                    {amount && parseFloat(amount) >= 500 && (
+                    {amount && parseFloat(amount) >= 1 && (
                       <div className="rounded-2xl bg-accent border border-border p-4">
                         <p className="text-xs font-body text-muted-foreground mb-1">Estimated annual return</p>
                         <p className="text-2xl font-heading font-bold text-secondary">
                           ₹{Math.round(parseFloat(amount) * (depositType === "saving" ? 0.07 : 0.12)).toLocaleString("en-IN")}
                         </p>
                         <p className="text-xs font-body text-muted-foreground mt-0.5">
-                          at {depositType === "saving" ? "7%" : "12%"} per year · returns credited monthly
+                          at {depositType === "saving" ? "7%" : "12%"} per year · returns credited Daily
                         </p>
                       </div>
                     )}
@@ -510,7 +510,7 @@ const InvestPage = () => {
                     <Clock className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
                     <p className="text-xs font-body text-amber-700 leading-relaxed">
                       <strong>Important:</strong> After completing the UPI payment, click "Confirm Payment Sent" below.
-                      Our team will verify and approve your investment within 24 hours.
+                      Our team will verify and approve your investment within 2 hours.
                     </p>
                   </div>
 
@@ -528,7 +528,7 @@ const InvestPage = () => {
                       disabled={confirmed}
                       className="h-12 rounded-xl font-body font-medium group"
                     >
-                      {confirmed ? "Submitting…" : (isMobile ? "Paid" : "Confirm Payment Sent")}
+                      {confirmed ? "Submitting…" : (isMobile ? "Request" : "Confirm Payment Sent")}
                       {!confirmed && <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />}
                     </Button>
                   </div>
@@ -554,7 +554,7 @@ const InvestPage = () => {
                   <p className="text-base font-body text-muted-foreground max-w-sm mx-auto leading-relaxed mb-6">
                     Your investment of{" "}
                     <strong className="text-foreground">₹{parseFloat(amount).toLocaleString("en-IN")}</strong>{" "}
-                    is now waiting for admin approval. We'll verify your payment within 24 hours.
+                    is now waiting for admin approval. We'll verify your payment within 2 hours.
                   </p>
 
                   <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-amber-50 border border-amber-200 mb-8">
@@ -649,7 +649,7 @@ const InvestPage = () => {
             <div className="card-premium p-6 mt-4">
               <h3 className="font-heading text-base text-foreground mb-2">Need help?</h3>
               <p className="text-sm font-body text-muted-foreground leading-relaxed mb-4">
-                If your payment is not showing up after 24 hours, contact our support team with your Reference ID.
+                If your payment is not showing up after 2 hours, contact our support team with your Reference ID.
               </p>
               <a
                 href="mailto:support@growvest.in"

@@ -36,6 +36,11 @@ const Footer = () => (
             Platform
           </h4>
           <ul className="space-y-3.5">
+            <li>
+              <Link to="/about" className="text-sm font-body text-background/70 hover:text-background transition-colors">
+                About Us
+              </Link>
+            </li>
             {[
               { label: "Features", href: "#features" },
               { label: "How It Works", href: "#how-it-works" },

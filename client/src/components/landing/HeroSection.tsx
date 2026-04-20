@@ -72,7 +72,7 @@ const HeroSection = () => (
 
           <p className="text-lg text-muted-foreground leading-relaxed font-body font-light mb-8 max-w-md">
             Track your investments and returns in a simple, transparent way.
-            Invest via QR code, get admin-verified in 24 hours, and watch your
+            Invest via QR code, get admin-verified in 2 hours, and watch your
             money grow — all in one place.
           </p>
 
