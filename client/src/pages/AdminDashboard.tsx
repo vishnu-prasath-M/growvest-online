@@ -93,7 +93,6 @@ const AdminDashboard = () => {
   const [payModalData, setPayModalData] = useState<WithdrawReq | null>(null);
   const [withdrawList, setWithdrawList] = useState<WithdrawReq[]>([]);
   const [allUsers, setAllUsers] = useState<UserData[]>([]);
-  const [totalPayableBalance, setTotalPayableBalance] = useState<number>(0);
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [userDetails, setUserDetails] = useState<Record<string, any>>({});
 
@@ -159,18 +158,6 @@ const AdminDashboard = () => {
           }
         })
         .catch(err => console.error("Error fetching users:", err));
-
-      // Fetch total payable balance
-      fetch(`${API_URL}/api/users/admin/total-balance`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data && typeof data.totalPayableBalance === 'number') {
-            setTotalPayableBalance(data.totalPayableBalance);
-          }
-        })
-        .catch(err => console.error("Error fetching total payable balance:", err));
     };
 
     fetchAll();
@@ -227,10 +214,14 @@ const AdminDashboard = () => {
   const pendingCount = pendingList.filter((i) => i.status === "pending").length;
   const wdPendingCount = withdrawList.filter((w) => w.status === "pending").length;
 
-  const totalReturnsStr = `₹${Math.round(pendingList.filter(i => i?.status === 'approved').reduce((acc, curr) => acc + (curr?.totalInterest || 0), 0)).toLocaleString("en-IN")}`;
+  // Total Payable Balance = SUM of all users' current balance field from DB
+  // This works immediately using already-fetched allUsers data
+  const totalPayableBalance = allUsers
+    .filter(u => u.role !== 'admin')
+    .reduce((acc, u) => acc + (u.balance || 0), 0);
   const totalPayableStr = `₹${totalPayableBalance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const totalReturnsStr = `₹${Math.round(pendingList.filter(i => i?.status === 'approved').reduce((acc, curr) => acc + (curr?.totalInterest || 0), 0)).toLocaleString("en-IN")}`;
 
-  
   const dynamicUsersData = allUsers.map(u => ({
     id: u._id,
     name: u.name,
