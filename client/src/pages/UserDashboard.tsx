@@ -108,6 +108,7 @@ const UserDashboard = () => {
   const [totalInvested, setTotalInvested] = useState<number>(0);
   const [totalInterest, setTotalInterest] = useState<number>(0);
   const [totalWithdrawn, setTotalWithdrawn] = useState<number>(0);
+  const [availableToWithdraw, setAvailableToWithdraw] = useState<number>(0);
   const [dismissedPaidSuccess, setDismissedPaidSuccess] = useState(false);
   const [showWithdrawSuccess, setShowWithdrawSuccess] = useState(false);
   const [dbUser, setDbUser] = useState<any>(null);
@@ -294,6 +295,7 @@ const UserDashboard = () => {
             setTotalInvested(Math.max(0, data.totalInvested || 0));
             setTotalInterest(Math.max(0, data.totalInterest || 0));
             setTotalWithdrawn(Math.max(0, data.totalWithdrawn || 0));
+            setAvailableToWithdraw(Math.max(0, data.availableToWithdraw || 0));
           }
         })
         .catch(err => {
@@ -353,11 +355,9 @@ const UserDashboard = () => {
 
   const overviewCards = [
     {
-      label: "Total Invested",
-      value: `₹${safeCurrency(totalInvested)}`,
-
-
-      sub: "Active capital",
+      label: "Available to Withdraw",
+      value: `₹${safeDecimal(availableToWithdraw)}`,
+      sub: "Withdrawable capital",
       positive: true,
       icon: Wallet,
       color: "bg-accent",
@@ -412,18 +412,12 @@ const UserDashboard = () => {
   };
 
   const checkFixedDepositEligibility = () => {
-    if (fixedInvestments.length === 0) {
-      setWithdrawError("No Fixed Deposits found");
+    // Backend already calculates availableToWithdraw which includes only matured fixed deposits
+    // We just need to check if there is ANY available amount in the fixed portion
+    const availableFixed = Math.max(0, availableToWithdraw - savingBalance);
+    if (availableFixed <= 0) {
+      setWithdrawError("No matured Fixed Deposits available for withdrawal yet (1 year lock period).");
       return false;
-    }
-
-    // Check if any fixed deposit is still locked
-    for (const investment of fixedInvestments) {
-      const eligibility = checkWithdrawalEligibility('fixed', investment.startDate);
-      if (!eligibility.eligible) {
-        setWithdrawError(`Withdrawal allowed only after 1 year. Available on: ${eligibility.unlockDate}`);
-        return false;
-      }
     }
     return true;
   };
@@ -438,15 +432,13 @@ const UserDashboard = () => {
 
     if (withdrawType === 'saving') {
       if (amount > savingBalance) {
-        setWithdrawError("Insufficient balance in Saving Deposit");
+        setWithdrawError(`Insufficient balance in Saving Deposit. Max: ₹${safeCurrency(Math.floor(savingBalance))}`);
         return false;
       }
     } else if (withdrawType === 'fixed') {
-      if (!checkFixedDepositEligibility()) {
-        return false;
-      }
-      if (amount > fixedBalance) {
-        setWithdrawError("Insufficient balance in Fixed Deposit");
+      const availableFixed = Math.max(0, availableToWithdraw - savingBalance);
+      if (amount > availableFixed) {
+        setWithdrawError(`Insufficient matured balance in Fixed Deposit. Max: ₹${safeCurrency(Math.floor(availableFixed))}`);
         return false;
       }
     }
@@ -515,7 +507,7 @@ const UserDashboard = () => {
         <div className="p-5 border-b border-border flex items-center justify-between">
           <div>
             <ZenvestLogo size="sm" />
-            <p className="text-xs font-body text-muted-foreground mt-1">User Dashboard</p>
+            <p className="text-xs font-body text-muted-foreground mt-1">Profile</p>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
@@ -1176,7 +1168,7 @@ const UserDashboard = () => {
                   <div className="rounded-2xl bg-amber-50 border border-amber-200 p-4 flex items-start gap-3">
                     <Clock className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
                     <p className="text-xs font-body text-amber-700 leading-relaxed">
-                      Withdrawals are reviewed manually by our team and processed within 24–48 hours.
+                      Withdrawals are reviewed manually by our team and processed within 2–3 hours.
                     </p>
                   </div>
 

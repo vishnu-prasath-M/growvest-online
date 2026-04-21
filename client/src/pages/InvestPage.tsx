@@ -6,14 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Navbar from "@/components/Navbar";
-import { QRCodeSVG } from "qrcode.react";
-import { generateUPILink } from "@/utils/upi";
-
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { QRCodeSVG } from "qrcode.react";
+import { generateUPILink } from "@/utils/upi";
 
-type Step = "amount" | "qr" | "pending";
+type Step = "amount" | "payment" | "pending";
 
 interface Investment {
   _id?: string;
@@ -80,6 +79,7 @@ const InvestPage = () => {
   const [pastInvestments, setPastInvestments] = useState<Investment[]>([]);
   const [upiId, setUpiId] = useState("7418662750@ibl");
   const [loading, setLoading] = useState(true);
+  const [razorpayLoading, setRazorpayLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -145,9 +145,8 @@ const InvestPage = () => {
 
 
   const refCode = `INV-${Date.now().toString().slice(-6)}`;
-  const qrValue = (!loading && upiId && amount) ? generateUPILink(upiId, amount, refCode, 'Growvest') : "";
 
-  const handleInvest = () => {
+  const handleInvest = async () => {
     if (!user || !token) {
       toast.error("Please login first to continue");
       navigate("/login");
@@ -160,47 +159,43 @@ const InvestPage = () => {
       return;
     }
     setAmountError("");
-    setStep("qr");
+    setStep("payment");
   };
 
-  const handleConfirm = async () => {
-    if (!user || !token) {
-      toast.error("Session expired. Please login again.");
-      navigate("/login");
-      return;
-    }
-
-    setConfirmed(true);
-
+  const handleConfirmPaid = async () => {
+    if (!user || !token) return;
+    
+    setRazorpayLoading(true); // Re-using loading state for button
     try {
       const res = await fetch(`${API_URL}/api/investments`, {
-
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({ 
-          amount: parseFloat(amount), 
+          amount: parseFloat(amount),
           type: depositType,
           userName: user.name,
           userEmail: user.email
         })
       });
-      
+
       if (res.ok) {
-        setTimeout(() => setStep("pending"), 800);
+        toast.success("Investment submitted for verification!");
+        setStep("pending");
       } else {
-        const errorData = await res.json();
-        alert(errorData.message || "Failed to submit payment confirmation");
-        setConfirmed(false);
+        throw new Error("Failed to submit investment");
       }
-    } catch (error) {
-      console.error("Failed to create investment", error);
-      alert("Connection error. Please check if your server is running.");
-      setConfirmed(false);
+    } catch (err: any) {
+      console.error("Submission error:", err);
+      toast.error(err.message || "Could not submit investment");
+    } finally {
+      setRazorpayLoading(false);
     }
   };
+
+  // handleConfirm is no longer needed with Razorpay automated verification
 
 
   // Show error state if there's a critical error
@@ -254,22 +249,22 @@ const InvestPage = () => {
           <div className="lg:col-span-7">
             {/* Step indicator */}
             <div className="flex items-center gap-3 mb-8">
-              {(["amount", "qr", "pending"] as Step[]).map((s, i) => (
+              {(["amount", "payment", "pending"] as Step[]).map((s, i) => (
                 <div key={s} className="flex items-center gap-3">
                   <div className={`flex items-center gap-2 ${step === s ? "" : "opacity-40"}`}>
                     <div
                       className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-body font-bold transition-colors ${
                         step === s
                           ? "bg-primary text-primary-foreground"
-                          : ["amount", "qr", "pending"].indexOf(step) > i
+                          : ["amount", "payment", "pending"].indexOf(step) > i
                           ? "bg-secondary text-secondary-foreground"
                           : "bg-muted text-muted-foreground"
                       }`}
                     >
-                      {["amount", "qr", "pending"].indexOf(step) > i ? "✓" : i + 1}
+                      {["amount", "payment", "pending"].indexOf(step) > i ? "✓" : i + 1}
                     </div>
                     <span className={`text-xs font-body font-medium ${step === s ? "text-foreground" : "text-muted-foreground"}`}>
-                      {s === "amount" ? "Amount" : s === "qr" ? "Payment" : "Confirmation"}
+                      {s === "amount" ? "Amount" : s === "payment" ? "Payment" : "Status"}
                     </span>
                   </div>
                   {i < 2 && <div className="h-px w-8 bg-border" />}
@@ -386,151 +381,70 @@ const InvestPage = () => {
 
                     <Button
                       onClick={handleInvest}
+                      disabled={razorpayLoading}
                       size="lg"
                       className="w-full h-13 text-base font-body font-medium rounded-xl group"
                     >
-                      Proceed to Payment
+                      {razorpayLoading ? "Processing..." : "Proceed to Payment"}
                       <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                     </Button>
                   </div>
                 </motion.div>
               )}
 
-              {/* STEP 2: QR Code */}
-              {step === "qr" && (
+              {/* STEP 2: QR Payment */}
+              {step === "payment" && (
                 <motion.div
-                  key="qr"
+                  key="payment"
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -16 }}
                   transition={{ duration: 0.35 }}
-                  className="card-premium p-8"
+                  className="card-premium p-8 text-center"
                 >
-                  <h2 className="font-heading text-2xl text-foreground mb-1">Scan & Pay</h2>
-                  <p className="text-sm font-body text-muted-foreground mb-8">
-                    Scan the QR code with any UPI app and complete your payment of{" "}
-                    <strong className="text-foreground font-semibold">₹{parseFloat(amount || "0").toLocaleString("en-IN")}</strong>.
-                    Then click "Confirm Payment" below.
+                  <h2 className="font-heading text-2xl text-foreground mb-4">Scan QR to Pay</h2>
+                  <p className="text-sm font-body text-muted-foreground mb-6">
+                    Scan this QR using any UPI app like GPay, PhonePe, or Paytm to pay <strong className="text-foreground font-bold">₹{parseFloat(amount).toLocaleString("en-IN")}</strong>
                   </p>
 
-                  {/* Payment Methods */}
-                  <div className="flex flex-col items-center justify-center mb-8 gap-4">
-                    {isMobile && qrValue ? (
-                      <div className="w-full text-center">
-                        <p className="text-sm font-body text-primary font-medium mb-3">
-                          On mobile, use Pay via UPI button instead of QR
-                        </p>
-                        <a 
-                          href={qrValue} 
-                          className="w-full sm:w-auto inline-flex items-center justify-center bg-primary text-primary-foreground h-12 px-8 rounded-xl font-body font-semibold text-base transition-colors hover:bg-primary/90 shadow-md"
-                        >
-                          Pay via UPI / GPay
-                        </a>
-                      </div>
-                    ) : null}
-
-                    {(!isMobile || !qrValue) && (
-                      <div className="rounded-3xl border-2 border-border p-6 bg-white shadow-card mt-2">
-                        {qrValue && upiId ? (
-                          <>
-                            <QRCodeSVG
-                              value={qrValue}
-                              size={200}
-                              bgColor="#ffffff"
-                              fgColor="#0d2e1a"
-                              level="H"
-                              includeMargin={false}
-                            />
-                            <div className="mt-4 text-center">
-                              <p className="text-xs font-body font-bold text-foreground">Growvest Investments</p>
-                              <p className="text-xs font-body text-muted-foreground mt-0.5">{upiId}</p>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="w-[200px] h-[200px] flex items-center justify-center">
-                            <div className="text-center">
-                              {loading ? (
-                                <>
-                                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
-                                  <p className="text-xs font-body text-muted-foreground">Loading QR...</p>
-                                </>
-                              ) : (
-                                <>
-                                  <div className="w-[150px] h-[150px] bg-gray-100 rounded-lg flex items-center justify-center mb-2">
-                                    <p className="text-xs font-body text-muted-foreground">QR Code</p>
-                                  </div>
-                                  <p className="text-xs font-body text-muted-foreground">Generating...</p>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {isMobile && qrValue && (
-                      <div className="text-center mt-2">
-                        <button 
-                          onClick={() => {
-                            const qrDiv = document.getElementById('qr-container-mobile');
-                            if (qrDiv) qrDiv.classList.toggle('hidden');
-                          }}
-                          className="text-xs font-body text-muted-foreground underline"
-                        >
-                          Show QR code instead
-                        </button>
-                        <div id="qr-container-mobile" className="hidden mt-4 rounded-3xl border-2 border-border p-6 bg-white shadow-card flex items-center justify-center">
-                          <QRCodeSVG
-                              value={qrValue}
-                              size={150}
-                              bgColor="#ffffff"
-                              fgColor="#0d2e1a"
-                              level="H"
-                              includeMargin={false}
-                            />
-                        </div>
-                      </div>
-                    )}
+                  <div className="flex flex-col items-center justify-center mb-8">
+                    <div className="p-6 bg-white rounded-3xl border-2 border-border shadow-soft mb-4">
+                      <QRCodeSVG
+                        value={`upi://pay?pa=${upiId}&pn=Zenvest&am=${amount}&cu=INR`}
+                        size={200}
+                        level="H"
+                        includeMargin={false}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-accent text-accent-foreground text-xs font-body font-semibold border border-divider">
+                      <CheckCircle className="h-3.5 w-3.5" />
+                      Amount auto-filled
+                    </div>
                   </div>
 
-                  {/* Payment details */}
-                  <div className="rounded-2xl bg-accent border border-border p-5 mb-6 space-y-3">
-                    {[
-                      { label: "Amount", value: `₹${parseFloat(amount || "0").toLocaleString("en-IN")}` },
-                      { label: "Reference ID", value: refCode },
-                      { label: "UPI ID", value: upiId || "7418662750@ibl" },
-                    ].map((d) => (
-                      <div key={d.label} className="flex items-center justify-between">
-                        <span className="text-sm font-body text-muted-foreground">{d.label}</span>
-                        <span className="text-sm font-body font-semibold text-foreground">{d.value}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 mb-6 flex items-start gap-3">
-                    <Clock className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-                    <p className="text-xs font-body text-amber-700 leading-relaxed">
-                      <strong>Important:</strong> After completing the UPI payment, click "Confirm Payment Sent" below.
-                      Our team will verify and approve your investment within 2 hours.
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button
-                      variant="outline"
-                      onClick={() => setStep("amount")}
-                      className="h-12 rounded-xl font-body font-medium"
-                    >
-                      <ArrowLeft className="mr-2 h-4 w-4" />
-                      Back
-                    </Button>
-                    <Button
-                      onClick={handleConfirm}
-                      disabled={confirmed}
-                      className="h-12 rounded-xl font-body font-medium group"
-                    >
-                      {confirmed ? "Submitting…" : (isMobile ? "Request" : "Confirm Payment Sent")}
-                      {!confirmed && <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />}
-                    </Button>
+                  <div className="space-y-4">
+                    <div className="p-4 rounded-xl bg-muted/30 border border-border">
+                      <p className="text-sm font-body text-foreground">
+                        Payment Done? Click confirm below. Our team will verify and approve your investment within 2 hours.
+                      </p>
+                    </div>
+                    
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <Button
+                        variant="outline"
+                        className="flex-1 h-12 rounded-xl font-body"
+                        onClick={() => setStep("amount")}
+                      >
+                        Back
+                      </Button>
+                      <Button
+                        className="flex-1 h-12 rounded-xl font-body bg-secondary hover:bg-secondary/90 text-white"
+                        onClick={handleConfirmPaid}
+                        disabled={razorpayLoading}
+                      >
+                        {razorpayLoading ? "Submitting..." : "I Have Paid"}
+                      </Button>
+                    </div>
                   </div>
                 </motion.div>
               )}
@@ -549,24 +463,24 @@ const InvestPage = () => {
                     <Clock className="h-8 w-8 text-amber-500" />
                   </div>
                   <h2 className="font-heading text-2xl text-foreground mb-3">
-                    Payment Submitted!
+                    Investment Submitted!
                   </h2>
                   <p className="text-base font-body text-muted-foreground max-w-sm mx-auto leading-relaxed mb-6">
                     Your investment of{" "}
                     <strong className="text-foreground">₹{parseFloat(amount).toLocaleString("en-IN")}</strong>{" "}
-                    is now waiting for admin approval. We'll verify your payment within 2 hours.
+                    is pending verification. It will show in your dashboard once approved.
                   </p>
 
                   <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-amber-50 border border-amber-200 mb-8">
                     <Clock className="h-4 w-4 text-amber-600" />
-                    <span className="text-sm font-body font-medium text-amber-700">Waiting for Approval</span>
+                    <span className="text-sm font-body font-medium text-amber-700">Awaiting Verification</span>
                   </div>
 
                   <div className="rounded-2xl bg-accent border border-border p-5 mb-8 text-left space-y-3">
                     {[
                       { label: "Amount", value: `₹${parseFloat(amount).toLocaleString("en-IN")}` },
-                      { label: "Reference ID", value: refCode },
-                      { label: "Status", value: "Pending Review" },
+                      { label: "Status", value: "Pending" },
+                      { label: "Est. Approval", value: "Within 2 hours" },
                     ].map((d) => (
                       <div key={d.label} className="flex items-center justify-between">
                         <span className="text-sm font-body text-muted-foreground">{d.label}</span>

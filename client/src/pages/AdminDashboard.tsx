@@ -838,59 +838,27 @@ const AdminDashboard = () => {
                     payModalData.upi,
                     payModalData.rawAmount,
                     `WD-${payModalData.id}`,
-                    'Growvest'
+                    'Zenvest'
                   );
                   
                   return (
-                    <>
-                      {isMobile ? (
-                        <div className="w-full text-center">
-                          <p className="text-sm font-body text-primary font-medium mb-3">
-                            On mobile, use Pay via UPI button instead of QR
-                          </p>
-                          <a 
-                            href={upiLink} 
-                            className="w-full sm:w-auto inline-flex items-center justify-center bg-primary text-primary-foreground h-12 px-8 rounded-xl font-body font-semibold text-base transition-colors hover:bg-primary/90 shadow-md"
-                          >
-                            Pay via UPI / GPay
-                          </a>
-                          
-                          <div className="text-center mt-4">
-                            <button 
-                              onClick={() => {
-                                const qrDiv = document.getElementById('qr-container-admin-mobile');
-                                if (qrDiv) qrDiv.classList.toggle('hidden');
-                              }}
-                              className="text-xs font-body text-muted-foreground underline"
-                            >
-                              Show QR code instead
-                            </button>
-                            <div id="qr-container-admin-mobile" className="hidden mt-4 rounded-2xl border-2 border-border p-4 bg-white shadow-card flex items-center justify-center">
-                              <QRCodeSVG
-                                  value={upiLink}
-                                  size={150}
-                                  bgColor="#ffffff"
-                                  fgColor="#000000"
-                                  level="H"
-                                />
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="rounded-2xl border-2 border-border p-4 bg-white shadow-card">
-                            <QRCodeSVG
-                              value={upiLink}
-                              size={150}
-                              bgColor="#ffffff"
-                              fgColor="#000000"
-                              level="H"
-                            />
-                          </div>
-                          <p className="text-xs font-body text-muted-foreground mt-2">QR code includes amount automatically</p>
-                        </>
-                      )}
-                    </>
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="rounded-2xl border-2 border-border p-4 bg-white shadow-card">
+                        <QRCodeSVG
+                          value={upiLink}
+                          size={180}
+                          bgColor="#ffffff"
+                          fgColor="#000000"
+                          level="H"
+                        />
+                      </div>
+                      <p className="text-sm font-body font-medium text-primary">
+                        Scan this QR using any UPI app to pay
+                      </p>
+                      <p className="text-xs font-body text-muted-foreground">
+                        Amount: ₹{payModalData.rawAmount.toLocaleString("en-IN")} · Ref: WD-{payModalData.id}
+                      </p>
+                    </div>
                   );
                 } catch (error) {
                   return (

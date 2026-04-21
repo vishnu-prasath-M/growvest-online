@@ -8,6 +8,8 @@ import DashboardPreviewSection from "@/components/landing/DashboardPreviewSectio
 import TrustSection from "@/components/landing/TrustSection";
 import CTASection from "@/components/landing/CTASection";
 
+
+
 const Index = () => (
   <div className="min-h-screen">
     <Navbar />

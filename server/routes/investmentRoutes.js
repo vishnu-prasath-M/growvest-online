@@ -8,4 +8,5 @@ router.get('/', protect, investmentController.getInvestments);
 router.patch('/:id/status', protect, admin, investmentController.updateInvestmentStatus);
 router.post('/:id/withdraw', protect, investmentController.withdrawInvestment);
 
+
 module.exports = router;

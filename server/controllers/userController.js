@@ -58,6 +58,15 @@ exports.getUserByEmail = async (req, res) => {
     let fixedBalance = fixedInvested + fixedInterest - fixedWithdrawn;
     if (fixedBalance < 0) fixedBalance = 0;
 
+    // Calculate withdrawable fixed balance (only those older than 1 year)
+    const withdrawableFixedInvested = fixedInvestments.filter(inv => {
+      const diffDays = (new Date() - new Date(inv.startDate)) / (1000 * 60 * 60 * 24);
+      return diffDays >= 365;
+    }).reduce((acc, inv) => acc + inv.amount + calculateDailyInterest(inv), 0);
+
+    const availableFixed = Math.max(0, withdrawableFixedInvested - fixedWithdrawn);
+    const availableToWithdraw = savingBalance + availableFixed;
+
     // Total balance
     let totalBalance = savingBalance + fixedBalance;
     if (totalBalance < 0) totalBalance = 0;
@@ -73,6 +82,7 @@ exports.getUserByEmail = async (req, res) => {
       totalBalance,
       savingBalance,
       fixedBalance,
+      availableToWithdraw,
       totalInvested,
       totalInterest,
       totalWithdrawn,
@@ -126,11 +136,19 @@ exports.getUserDetailByEmail = async (req, res) => {
     const totalInterest = savingInterest + fixedInterest;
     const totalBalance = savingBalance + fixedBalance;
 
+    // Available to Withdraw for detail
+    const withdrawableFixedInvestedDetail = fixedInvestments.filter(inv => {
+      const diffDays = (new Date() - new Date(inv.startDate)) / (1000 * 60 * 60 * 24);
+      return diffDays >= 365;
+    }).reduce((acc, inv) => acc + inv.amount + calculateDailyInterest(inv), 0);
+    const availableToWithdrawDetail = savingBalance + Math.max(0, withdrawableFixedInvestedDetail - fixedWithdrawn);
+
     res.status(200).json({
       user,
       totalInvested,
       totalEarnings: totalInterest,
       currentBalance: totalBalance,
+      availableToWithdraw: availableToWithdrawDetail,
       saving: {
         invested: savingInvested,
         interest: savingInterest,
