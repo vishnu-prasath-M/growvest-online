@@ -432,13 +432,13 @@ const UserDashboard = () => {
 
     if (withdrawType === 'saving') {
       if (amount > savingBalance) {
-        setWithdrawError(`Insufficient balance in Saving Deposit. Max: ₹${safeCurrency(Math.floor(savingBalance))}`);
+        setWithdrawError(`Insufficient balance in Saving Deposit. Max: ₹${safeDecimal(savingBalance)}`);
         return false;
       }
     } else if (withdrawType === 'fixed') {
       const availableFixed = Math.max(0, availableToWithdraw - savingBalance);
       if (amount > availableFixed) {
-        setWithdrawError(`Insufficient matured balance in Fixed Deposit. Max: ₹${safeCurrency(Math.floor(availableFixed))}`);
+        setWithdrawError(`Insufficient matured balance in Fixed Deposit. Max: ₹${safeDecimal(availableFixed)}`);
         return false;
       }
     }
@@ -1087,7 +1087,7 @@ const UserDashboard = () => {
                         <p className="text-xs font-body text-green-700 font-medium">Saving Deposit Balance</p>
                         <div className="h-2 w-2 bg-green-500 rounded-full"></div>
                       </div>
-                      <p className="text-2xl font-heading font-bold text-green-800">₹{safeCurrency(Math.round(savingBalance || 0))}</p>
+                      <p className="text-2xl font-heading font-bold text-green-800">₹{safeDecimal(savingBalance || 0)}</p>
                       <p className="text-xs font-body text-green-600 mt-1">Withdraw anytime</p>
                       <Button
                         onClick={() => {
@@ -1109,7 +1109,7 @@ const UserDashboard = () => {
                         <p className="text-xs font-body text-blue-700 font-medium">Fixed Deposit Balance</p>
                         <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
                       </div>
-                      <p className="text-2xl font-heading font-bold text-blue-800">₹{safeCurrency(Math.round(fixedBalance || 0))}</p>
+                      <p className="text-2xl font-heading font-bold text-blue-800">₹{safeDecimal(fixedBalance || 0)}</p>
                       <p className="text-xs font-body text-blue-600 mt-1">1 year lock period</p>
                       <Button
                         onClick={() => {
@@ -1161,7 +1161,7 @@ const UserDashboard = () => {
                           />
                         </div>
                         <p className="text-xs font-body text-muted-foreground mt-1">
-                          Available: ₹{safeCurrency(Math.round(withdrawType === 'saving' ? savingBalance : fixedBalance))}
+                          Available: ₹{safeDecimal(withdrawType === 'saving' ? savingBalance : fixedBalance)}
                         </p>
                       </div>
 
