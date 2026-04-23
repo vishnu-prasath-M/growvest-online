@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, CheckCircle, Clock, XCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle, Clock, XCircle, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -77,7 +77,7 @@ const InvestPage = () => {
   const [confirmed, setConfirmed] = useState(false);
   const [depositType, setDepositType] = useState<"saving" | "fixed">("saving");
   const [pastInvestments, setPastInvestments] = useState<Investment[]>([]);
-  const [upiId, setUpiId] = useState("q751029321@ybl");
+  const [upiId, setUpiId] = useState("prasath-005@ptyes");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -120,15 +120,15 @@ const InvestPage = () => {
             setUpiId(data.value);
             setError("");
           } else {
-            setUpiId("q751029321@ybl");
+            setUpiId("prasath-005@ptyes");
           }
         } else {
-          setUpiId("q751029321@ybl");
+          setUpiId("prasath-005@ptyes");
         }
       } catch (err) {
         console.error('Error fetching UPI ID:', err);
         setError('Failed to load UPI settings');
-        setUpiId("q751029321@ybl");
+        setUpiId("prasath-005@ptyes");
       } finally {
         setLoading(false);
       }
@@ -136,6 +136,34 @@ const InvestPage = () => {
 
     fetchUPIId();
   }, []);
+
+  // PERSISTENCE: Save state to localStorage
+  useEffect(() => {
+    if (step !== "amount" || amount) {
+      localStorage.setItem("growvest_invest_step", step);
+      localStorage.setItem("growvest_invest_amount", amount);
+      localStorage.setItem("growvest_invest_type", depositType);
+    }
+  }, [step, amount, depositType]);
+
+  // PERSISTENCE: Restore state from localStorage
+  useEffect(() => {
+    const savedStep = localStorage.getItem("growvest_invest_step") as Step;
+    const savedAmount = localStorage.getItem("growvest_invest_amount");
+    const savedType = localStorage.getItem("growvest_invest_type") as "saving" | "fixed";
+
+    if (savedStep && savedStep !== "amount") {
+      setStep(savedStep);
+      if (savedAmount) setAmount(savedAmount);
+      if (savedType) setDepositType(savedType);
+    }
+  }, []);
+
+  const clearPersistedState = () => {
+    localStorage.removeItem("growvest_invest_step");
+    localStorage.removeItem("growvest_invest_amount");
+    localStorage.removeItem("growvest_invest_type");
+  };
 
   // Safe calculations with fallbacks
   const totalInvested = (pastInvestments || []).filter(i => i?.status === 'approved').reduce((acc, curr) => acc + (curr?.amount || 0), 0);
@@ -161,21 +189,40 @@ const InvestPage = () => {
       // Mobile - Direct UPI App opening with immediate feedback
       try {
         setIsRedirecting(true);
+        setSubmitting(true);
+        
+        // Step 1: Create the investment record before redirecting
+        const res = await fetch(`${API_URL}/api/investments`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ 
+            amount: val,
+            type: depositType,
+            userName: user.name,
+            userEmail: user.email
+          })
+        });
+
+        if (!res.ok) throw new Error("Could not initialize investment");
+        
+        // Step 2: Prepare UPI link
         const txnId = `TXN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         const upiLink = generateUPILink(upiId, val, txnId);
         
-        // Trigger immediately
+        // Step 3: Trigger immediately
         window.location.href = upiLink;
         
-        // Move to payment page after a short delay
-        setTimeout(() => {
-          setIsRedirecting(false);
-          setStep("payment");
-        }, 1200);
-      } catch (err: any) {
-        console.error("UPI link error:", err);
+        // Step 4: Move to pending page (Status Stage)
+        setStep("pending");
         setIsRedirecting(false);
-        toast.error("Could not generate payment link");
+      } catch (err: any) {
+        console.error("UPI flow error:", err);
+        setIsRedirecting(false);
+        setSubmitting(false);
+        toast.error("Could not start payment flow. Please try again.");
       }
     } else {
       // Desktop - Use QR flow
@@ -205,6 +252,7 @@ const InvestPage = () => {
       if (res.ok) {
         toast.success("Investment submitted for verification!");
         setStep("pending");
+        clearPersistedState();
       } else {
         throw new Error("Failed to submit investment");
       }
@@ -568,7 +616,7 @@ const InvestPage = () => {
                     <Button
                       variant="outline"
                       className="rounded-xl font-body font-medium h-12"
-                      onClick={() => { setStep("amount"); setAmount(""); setConfirmed(false); }}
+                      onClick={() => { clearPersistedState(); setStep("amount"); setAmount(""); setConfirmed(false); }}
                     >
                       Make Another Investment
                     </Button>

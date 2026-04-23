@@ -12,7 +12,7 @@
  * @returns Formatted UPI link string
  */
 export const generateUPILink = (
-  upiId: string = "q751029321@ybl",
+  upiId: string = "prasath-005@ptyes",
   amount: number | string,
   transactionId?: string,
   payeeName: string = "Growvest"
@@ -31,9 +31,9 @@ export const generateUPILink = (
   // Generate a transaction ID if not provided
   const txnId = transactionId || `TXN${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
-  // Merchant style link: upi://pay?pa=q751029321@ybl&pn=Growvest&mc=0000&tid={txnId}&tr={txnId}&tn=Investment&am={amount}&cu=INR
   // Use direct string to avoid URL encoding issues in some UPI apps (like %40 for @)
-  const upiLink = `upi://pay?pa=${upiId.trim()}&pn=${encodeURIComponent(payeeName)}&mc=0000&tid=${txnId}&tr=${txnId}&tn=Investment&am=${numericAmount}&cu=INR`;
+  // Simplified link (pa, pn, am, cu, tn) for better compatibility with personal accounts
+  const upiLink = `upi://pay?pa=${upiId.trim()}&pn=${encodeURIComponent(payeeName)}&tn=Investment&am=${numericAmount}&cu=INR`;
 
   return upiLink;
 };

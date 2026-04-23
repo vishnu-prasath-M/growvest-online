@@ -7,6 +7,7 @@ const cron = require('node-cron');
 const User = require('./models/User');
 const Investment = require('./models/Investment');
 const { syncInvestmentInterest } = require('./controllers/userController');
+const { initializeSettings } = require('./controllers/settingsController');
 
 // Feature 7: Daily Interest Cron Setup (12:00 AM)
 cron.schedule("0 0 * * *", async () => {
@@ -39,6 +40,10 @@ dns.setServers(['8.8.8.8', '8.8.4.4']);
 mongoose.connect(MONGO_URI)
   .then(async () => {
     console.log(`Connected to MongoDB: ${mongoose.connection.host}`);
+    
+    // Initialize default settings (UPI ID, etc.)
+    await initializeSettings();
+
     // Seed Admin User
     try {
       const adminEmail = 'MohanRaj@235';
