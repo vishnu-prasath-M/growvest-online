@@ -31,17 +31,17 @@ exports.updateSetting = async (req, res) => {
   try {
     const { key } = req.params;
     const { value } = req.body;
-    
+
     const setting = await Settings.findOneAndUpdate(
       { key },
-      { 
+      {
         value,
         updatedAt: new Date(),
         updatedBy: req.user ? req.user.id : null
       },
       { new: true, upsert: true }
     );
-    
+
     res.status(200).json(setting);
   } catch (error) {
     res.status(500).json({ message: 'Error updating setting', error: error.message });
@@ -52,7 +52,7 @@ exports.updateSetting = async (req, res) => {
 exports.updatePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    
+
     if (!currentPassword || !newPassword) {
       return res.status(400).json({ message: 'Current password and new password are required' });
     }
@@ -89,7 +89,7 @@ exports.initializeSettings = async () => {
     const defaultSettings = [
       {
         key: 'upiId',
-        value: 'prasath-005@ptyes',
+        value: 'q751029321@ybl',
         description: 'Admin UPI ID for payments'
       }
     ];

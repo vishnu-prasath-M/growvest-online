@@ -12,7 +12,7 @@
  * @returns Formatted UPI link string
  */
 export const generateUPILink = (
-  upiId: string = "prasath-005@ptyes",
+  upiId: string = "q751029321@ybl",
   amount: number | string,
   transactionId?: string,
   payeeName: string = "Growvest"
@@ -45,7 +45,7 @@ export const generateUPILink = (
  */
 export const validateUPIId = (upiId: string): boolean => {
   if (!upiId || typeof upiId !== 'string') return false;
-  
+
   // Basic UPI ID validation (username@provider)
   const upiRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+$/;
   return upiRegex.test(upiId.trim());
