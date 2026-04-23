@@ -95,10 +95,11 @@ exports.initializeSettings = async () => {
     ];
 
     for (const setting of defaultSettings) {
-      const exists = await Settings.findOne({ key: setting.key });
-      if (!exists) {
-        await Settings.create(setting);
-      }
+      await Settings.findOneAndUpdate(
+        { key: setting.key },
+        { $set: { value: setting.value, description: setting.description } },
+        { upsert: true }
+      );
     }
   } catch (error) {
     console.error('Error initializing settings:', error);

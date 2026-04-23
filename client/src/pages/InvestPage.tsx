@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, CheckCircle, Clock, XCircle, TrendingUp } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle, Clock, XCircle, TrendingUp, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
 import { generateUPILink } from "@/utils/upi";
 
-type Step = "amount" | "payment" | "pending";
+type Step = "amount" | "payment" | "status";
 
 interface Investment {
   _id?: string;
@@ -81,7 +81,7 @@ const InvestPage = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [investmentId, setInvestmentId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -143,26 +143,62 @@ const InvestPage = () => {
       localStorage.setItem("growvest_invest_step", step);
       localStorage.setItem("growvest_invest_amount", amount);
       localStorage.setItem("growvest_invest_type", depositType);
+      if (investmentId) localStorage.setItem("growvest_invest_id", investmentId);
     }
-  }, [step, amount, depositType]);
+  }, [step, amount, depositType, investmentId]);
 
-  // PERSISTENCE: Restore state from localStorage
+  // PERSISTENCE: Restore state and Sync with Backend
   useEffect(() => {
-    const savedStep = localStorage.getItem("growvest_invest_step") as Step;
-    const savedAmount = localStorage.getItem("growvest_invest_amount");
-    const savedType = localStorage.getItem("growvest_invest_type") as "saving" | "fixed";
+    const restoreState = async () => {
+      const savedStep = localStorage.getItem("growvest_invest_step") as Step;
+      const savedAmount = localStorage.getItem("growvest_invest_amount");
+      const savedType = localStorage.getItem("growvest_invest_type") as "saving" | "fixed";
+      const savedId = localStorage.getItem("growvest_invest_id");
 
-    if (savedStep && savedStep !== "amount") {
-      setStep(savedStep);
       if (savedAmount) setAmount(savedAmount);
       if (savedType) setDepositType(savedType);
-    }
-  }, []);
+      if (savedId) setInvestmentId(savedId);
+
+      // Verify with backend if we have a saved ID
+      if (savedId && token) {
+        try {
+          const res = await fetch(`${API_URL}/api/investments`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const inv = data.find((i: any) => i._id === savedId);
+            if (inv) {
+              if (inv.status === 'pending') {
+                setStep("status");
+                return;
+              } else if (inv.status === 'approved') {
+                // If already approved, clear and go to dashboard success
+                clearPersistedState();
+                navigate("/dashboard");
+                toast.success("Investment already approved!");
+                return;
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Sync error:", err);
+        }
+      }
+
+      if (savedStep && savedStep !== "amount") {
+        setStep(savedStep);
+      }
+    };
+
+    if (token) restoreState();
+  }, [token]);
 
   const clearPersistedState = () => {
     localStorage.removeItem("growvest_invest_step");
     localStorage.removeItem("growvest_invest_amount");
     localStorage.removeItem("growvest_invest_type");
+    localStorage.removeItem("growvest_invest_id");
   };
 
   // Safe calculations with fallbacks
@@ -184,50 +220,9 @@ const InvestPage = () => {
       return;
     }
     setAmountError("");
-
-    if (isMobile) {
-      // Mobile - Direct UPI App opening with immediate feedback
-      try {
-        setIsRedirecting(true);
-        setSubmitting(true);
-
-        // Step 1: Create the investment record before redirecting
-        const res = await fetch(`${API_URL}/api/investments`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            amount: val,
-            type: depositType,
-            userName: user.name,
-            userEmail: user.email
-          })
-        });
-
-        if (!res.ok) throw new Error("Could not initialize investment");
-
-        // Step 2: Prepare UPI link
-        const txnId = `TXN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-        const upiLink = generateUPILink(upiId, val, txnId);
-
-        // Step 3: Trigger immediately
-        window.location.href = upiLink;
-
-        // Step 4: Move to pending page (Status Stage)
-        setStep("pending");
-        setIsRedirecting(false);
-      } catch (err: any) {
-        console.error("UPI flow error:", err);
-        setIsRedirecting(false);
-        setSubmitting(false);
-        toast.error("Could not start payment flow. Please try again.");
-      }
-    } else {
-      // Desktop - Use QR flow
-      setStep("payment");
-    }
+    
+    // QR-Only for all devices
+    setStep("payment");
   };
 
   const handleConfirmPaid = async () => {
@@ -250,9 +245,10 @@ const InvestPage = () => {
       });
 
       if (res.ok) {
+        const data = await res.json();
+        setInvestmentId(data._id || null);
         toast.success("Investment submitted for verification!");
-        setStep("pending");
-        clearPersistedState();
+        setStep("status");
       } else {
         throw new Error("Failed to submit investment");
       }
@@ -289,20 +285,6 @@ const InvestPage = () => {
       <div className="min-h-screen bg-background relative overflow-x-hidden">
         <Navbar />
 
-        {/* Redirecting Notification */}
-        <AnimatePresence>
-          {isRedirecting && (
-            <motion.div
-              initial={{ opacity: 0, y: -20, x: "-50%" }}
-              animate={{ opacity: 1, y: 0, x: "-50%" }}
-              exit={{ opacity: 0, y: -20, x: "-50%" }}
-              className="fixed top-24 left-1/2 z-[100] bg-primary text-primary-foreground px-6 py-3 rounded-full shadow-xl flex items-center gap-3 border border-white/20 pointer-events-none"
-            >
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              <p className="text-sm font-heading font-medium">Redirecting to UPI app...</p>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         <div className="container py-12 max-w-5xl">
           {/* Loading indicator */}
@@ -469,11 +451,10 @@ const InvestPage = () => {
                         <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                       </Button>
 
-                      {isMobile && (
-                        <p className="text-center text-[10px] font-body text-muted-foreground">
-                          Use Pay Now button to complete payment
-                        </p>
-                      )}
+                      {/* Instructions for all devices */}
+                      <p className="text-center text-[10px] font-body text-muted-foreground">
+                        Scan the QR code below to complete payment
+                      </p>
                     </div>
                   </motion.div>
                 )}
@@ -494,46 +475,36 @@ const InvestPage = () => {
                     </p>
 
                     <div className="flex flex-col items-center justify-center mb-8">
-                      {isMobile ? (
-                        <div className="w-full max-w-xs p-8 bg-accent rounded-3xl border border-divider mb-6 flex flex-col items-center">
-                          <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                            <TrendingUp className="h-8 w-8 text-primary" />
-                          </div>
-                          <p className="text-sm font-body font-bold text-foreground">Opening your UPI app...</p>
-                          <p className="text-[11px] font-body text-muted-foreground mt-3 leading-relaxed">
-                            If app did not open:<br />
-                            • <button onClick={handleInvest} className="text-primary font-bold hover:underline">Tap 'Pay via UPI' again</button><br />
-                            • Or use QR option below
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="p-6 bg-white rounded-3xl border-2 border-border shadow-soft mb-4">
-                          <QRCodeSVG
-                            value={generateUPILink(upiId, amount, `TXN-${Date.now()}`)}
-                            size={200}
-                            level="H"
-                            includeMargin={false}
-                          />
-                        </div>
-                      )}
-
-                      <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-accent text-accent-foreground text-xs font-body font-semibold border border-divider mb-6">
-                        <Clock className="h-3.5 w-3.5" />
-                        {isMobile ? "Waiting for your confirmation" : "Scan QR using mobile UPI app"}
+                      <div className="p-6 bg-white rounded-3xl border-2 border-border shadow-soft mb-6">
+                        <QRCodeSVG
+                          value={`upi://pay?pa=${upiId}&pn=Growvest&am=${amount}&cu=INR`}
+                          size={220}
+                          level="H"
+                          includeMargin={false}
+                        />
                       </div>
+                      
+                      <p className="text-sm font-body font-medium text-foreground mb-4">
+                        Scan this QR using GPay / PhonePe / Paytm to complete payment
+                      </p>
 
-                      {isMobile && (
-                        <div className="mt-2 text-center">
-                          <p className="text-xs font-body text-muted-foreground mb-3">Having trouble? Try QR payment</p>
-                          <div className="p-4 bg-white rounded-2xl border border-border inline-block">
-                            <QRCodeSVG
-                              value={generateUPILink(upiId, amount, `QR-${Date.now()}`)}
-                              size={140}
-                              level="H"
-                            />
-                          </div>
+                      <div className="w-full max-w-xs space-y-3">
+                        <div className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-accent border border-divider">
+                          <p className="text-xs font-body text-muted-foreground">UPI ID: <span className="font-bold text-foreground">{upiId}</span></p>
+                          <Button 
+                            variant="secondary" 
+                            size="sm" 
+                            className="h-8 rounded-lg text-xs gap-1.5"
+                            onClick={() => {
+                              navigator.clipboard.writeText(upiId);
+                              toast.success("UPI ID copied");
+                            }}
+                          >
+                            <Copy className="h-3 w-3" />
+                            Copy UPI ID
+                          </Button>
                         </div>
-                      )}
+                      </div>
                     </div>
 
                     <div className="space-y-4">
@@ -564,9 +535,9 @@ const InvestPage = () => {
                 )}
 
                 {/* STEP 3: Pending confirmation */}
-                {step === "pending" && (
+                {step === "status" && (
                   <motion.div
-                    key="pending"
+                    key="status"
                     initial={{ opacity: 0, scale: 0.96 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0 }}
@@ -577,7 +548,7 @@ const InvestPage = () => {
                       <Clock className="h-8 w-8 text-amber-500" />
                     </div>
                     <h2 className="font-heading text-2xl text-foreground mb-3">
-                      Investment Submitted!
+                      Payment submitted for verification
                     </h2>
                     <p className="text-base font-body text-muted-foreground max-w-sm mx-auto leading-relaxed mb-6">
                       Your investment of{" "}
