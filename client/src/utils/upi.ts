@@ -32,18 +32,10 @@ export const generateUPILink = (
   const txnId = transactionId || `TXN${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
   // Merchant style link: upi://pay?pa=q751029321@ybl&pn=Growvest&mc=0000&tid={txnId}&tr={txnId}&tn=Investment&am={amount}&cu=INR
-  const params = new URLSearchParams({
-    pa: upiId.trim(),
-    pn: payeeName,
-    mc: '0000',
-    tid: txnId,
-    tr: txnId,
-    tn: 'Investment',
-    am: numericAmount.toFixed(2),
-    cu: 'INR'
-  });
+  // Use direct string to avoid URL encoding issues in some UPI apps (like %40 for @)
+  const upiLink = `upi://pay?pa=${upiId.trim()}&pn=${encodeURIComponent(payeeName)}&mc=0000&tid=${txnId}&tr=${txnId}&tn=Investment&am=${numericAmount}&cu=INR`;
 
-  return `upi://pay?${params.toString()}`;
+  return upiLink;
 };
 
 /**

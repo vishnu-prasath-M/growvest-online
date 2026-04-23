@@ -1,6 +1,7 @@
 const Investment = require('../models/Investment');
 const User = require('../models/User');
 const Transaction = require('../models/Transaction');
+const { syncInvestmentInterest } = require('./userController');
 
 exports.createInvestment = async (req, res) => {
   try {
@@ -62,41 +63,9 @@ exports.getInvestments = async (req, res) => {
         }
       }
 
-      // Sync interest logic (same as userController)
-      const startDate = new Date(inv.startDate);
-      startDate.setHours(0, 0, 0, 0);
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      // Feature 2: One-time data reset for incorrect logic
-      const logicVersion = 2;
-      if (inv.interestLogicVersion !== logicVersion) {
-        const diffDays = Math.floor(Math.max(0, today - startDate) / (1000 * 60 * 60 * 24));
-        const rate = (inv.type === 'fixed' ? 12 : 7) / 100;
-        const dailyRate = rate / 365;
-        const totalInt = inv.amount * dailyRate * diffDays;
-        
-        inv.interestEarned = totalInt;
-        inv.lastInterestCalculatedAt = today;
-        inv.interestLogicVersion = logicVersion;
-        await inv.save();
-      } else if (inv.status === 'approved') {
-        // Normal daily accumulation
-        const lastCalc = inv.lastInterestCalculatedAt ? new Date(inv.lastInterestCalculatedAt) : startDate;
-        lastCalc.setHours(0, 0, 0, 0);
-        
-        const daysToCalculate = Math.floor((today - lastCalc) / (1000 * 60 * 60 * 24));
-        
-        if (daysToCalculate > 0) {
-          const rate = (inv.type === 'fixed' ? 12 : 7) / 100;
-          const dailyInterest = (inv.amount * rate) / 365;
-          const freshInterest = dailyInterest * daysToCalculate;
-          
-          inv.interestEarned = (inv.interestEarned || 0) + freshInterest;
-          inv.lastInterestCalculatedAt = today;
-          await inv.save();
-        }
+      // Sync interest logic (using shared helper from userController)
+      if (inv.status === 'approved') {
+        await syncInvestmentInterest(inv);
       }
 
       return {

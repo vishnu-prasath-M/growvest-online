@@ -3,7 +3,26 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
+const cron = require('node-cron');
 const User = require('./models/User');
+const Investment = require('./models/Investment');
+const { syncInvestmentInterest } = require('./controllers/userController');
+
+// Feature 7: Daily Interest Cron Setup (12:00 AM)
+cron.schedule("0 0 * * *", async () => {
+  console.log("Running Daily Interest Calculation Cron Job...");
+  try {
+    const investments = await Investment.find({ status: 'approved' });
+    let count = 0;
+    for (const inv of investments) {
+      await syncInvestmentInterest(inv);
+      count++;
+    }
+    console.log(`Cron Job Finished: Updated ${count} investments.`);
+  } catch (error) {
+    console.error("Cron Job Error:", error);
+  }
+});
 const investmentRoutes = require('./routes/investmentRoutes');
 
 const app = express();

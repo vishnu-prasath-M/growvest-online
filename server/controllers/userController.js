@@ -5,7 +5,8 @@ const Withdrawal = require('../models/Withdrawal');
 // Helper function to calculate daily interest for an investment
 // Formula: (currentBalance * rate%) / 365 * daysSinceStart
 // Uses full precision (no rounding) so paisa-level values are preserved
-// Helper function to sync interest for an investment (Feature 1 & 2)
+// Helper function to sync interest for an investment (Feature 3 & 4)
+// strictly calculates ONLY after midnight and once per day
 const syncInvestmentInterest = async (inv) => {
   const startDate = new Date(inv.startDate);
   startDate.setHours(0, 0, 0, 0);
@@ -13,28 +14,30 @@ const syncInvestmentInterest = async (inv) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Feature 2: Fix Existing Wrong Data (Reset once if version is not 2)
-  if (inv.interestLogicVersion !== 2) {
+  // Feature 4: Reset Wrong Interest Data (Version 3)
+  if (inv.interestLogicVersion !== 3) {
     inv.interestEarned = 0;
-    inv.interestLogicVersion = 2;
-    // Set last calculated to start date to trigger catch-up calculation below
+    inv.interestLogicVersion = 3;
+    // Set last calculated to start date
     inv.lastInterestCalculatedAt = startDate;
+    await inv.save();
   }
 
   const lastCalcAt = inv.lastInterestCalculatedAt ? new Date(inv.lastInterestCalculatedAt) : startDate;
   lastCalcAt.setHours(0, 0, 0, 0);
 
-  // Feature 5: Run Only Once Per Day
+  // Interest starts calculating ONLY AFTER midnight the next day
+  // If today is Tuesday and lastCalcAt was Monday (0,0,0,0), diffDays = 1.
   if (today > lastCalcAt) {
-    const diffTime = Math.max(0, today - lastCalcAt);
+    const diffTime = today - lastCalcAt;
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     
     if (diffDays > 0) {
       const rate = inv.type === 'fixed' ? 12 : 7;
-      // Formula: (investedAmount × annualRate) / 365
+      // Daily Interest = (Amount * Rate) / 100 / 365
       const dailyInterest = (inv.amount * rate) / 100 / 365;
       
-      // Cumulative Calculation: interest = interest + dailyInterest
+      // Cumulative: interest = interest + dailyInterest
       inv.interestEarned = (inv.interestEarned || 0) + (dailyInterest * diffDays);
       inv.lastInterestCalculatedAt = today;
       await inv.save();
@@ -293,3 +296,5 @@ exports.getAllUsers = async (req, res) => {
     res.status(500).json({ message: 'Error fetching users', error: error.message });
   }
 };
+
+exports.syncInvestmentInterest = syncInvestmentInterest;
