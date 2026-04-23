@@ -19,7 +19,7 @@ dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 mongoose.connect(MONGO_URI)
   .then(async () => {
-    console.log('Connected to MongoDB (Dummy/Local)');
+    console.log(`Connected to MongoDB: ${mongoose.connection.host}`);
     // Seed Admin User
     try {
       const adminEmail = 'MohanRaj@235';

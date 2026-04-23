@@ -16,6 +16,7 @@ import ScrollToTop from "./components/ScrollToTop";
 
 import { useAuth } from "./context/AuthContext";
 
+
 const queryClient = new QueryClient();
 
 const App = () => {

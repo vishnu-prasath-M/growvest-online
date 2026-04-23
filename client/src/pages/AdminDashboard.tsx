@@ -37,7 +37,7 @@ interface PendingInv {
   ref: string;
   status: InvStatus;
   type: string;
-  totalInterest?: number;
+  interestEarned?: number;
 }
 
 interface UserData {
@@ -48,6 +48,7 @@ interface UserData {
   balance: number;
   role: string;
   totalInvested?: number;
+  totalEarnings?: number;
 }
 
 const usersData: any[] = []; // Removed static
@@ -141,7 +142,7 @@ const AdminDashboard = () => {
               ref: inv?.ref || "REF-ERROR",
               status: inv?.status || "pending",
               type: inv?.type || "saving",
-              totalInterest: inv?.totalInterest || 0
+              interestEarned: inv?.interestEarned || 0
             })));
           }
         })
@@ -220,10 +221,10 @@ const AdminDashboard = () => {
     .filter(u => u.role !== 'admin')
     .reduce((acc, u) => acc + (u.balance || 0), 0);
   const totalPayableStr = `₹${totalPayableBalance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  // Total interest earned by ALL users across all approved investments
-  const totalInterestEarned = pendingList
-    .filter(i => i?.status === 'approved')
-    .reduce((acc, curr) => acc + (curr?.totalInterest || 0), 0);
+  // Total interest earned by ALL users (Feature 3 Fix)
+  const totalInterestEarned = allUsers
+    .filter(u => u.role !== 'admin')
+    .reduce((acc, curr) => acc + (curr?.totalEarnings || 0), 0);
   const totalReturnsStr = `₹${totalInterestEarned.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const dynamicUsersData = allUsers.map(u => ({

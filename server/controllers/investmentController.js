@@ -47,7 +47,7 @@ exports.getInvestments = async (req, res) => {
   try {
     const investments = await Investment.find().sort({ createdAt: -1 });
 
-    // Calculate dynamic interest on the fly and fix missing user names
+    // Calculate dynamic interest for all approved investments
     const computedInvestments = await Promise.all(investments.map(async (inv) => {
       let userName = inv.userName;
       let userEmail = inv.userEmail;
@@ -58,33 +58,52 @@ exports.getInvestments = async (req, res) => {
           const user = await User.findOne({ email: userEmail });
           if (user) {
             userName = user.name;
-          } else {
-            // Last resort: link to the first user in the system
-            const firstUser = await User.findOne();
-            if (firstUser) userName = firstUser.name;
           }
-        } else {
-           const firstUser = await User.findOne();
-           if (firstUser) {
-             userName = firstUser.name;
-             userEmail = firstUser.email;
-           }
         }
       }
 
-      const now = new Date();
-      const diffTime = Math.abs(now - inv.startDate);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
-      // Daily interest calculation
-      const dailyInterest = (inv.amount * inv.interestRate) / 100 / 365;
-      const totalInterest = dailyInterest * diffDays;
+      // Sync interest logic (same as userController)
+      const startDate = new Date(inv.startDate);
+      startDate.setHours(0, 0, 0, 0);
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Feature 2: One-time data reset for incorrect logic
+      const logicVersion = 2;
+      if (inv.interestLogicVersion !== logicVersion) {
+        const diffDays = Math.floor(Math.max(0, today - startDate) / (1000 * 60 * 60 * 24));
+        const rate = (inv.type === 'fixed' ? 12 : 7) / 100;
+        const dailyRate = rate / 365;
+        const totalInt = inv.amount * dailyRate * diffDays;
+        
+        inv.interestEarned = totalInt;
+        inv.lastInterestCalculatedAt = today;
+        inv.interestLogicVersion = logicVersion;
+        await inv.save();
+      } else if (inv.status === 'approved') {
+        // Normal daily accumulation
+        const lastCalc = inv.lastInterestCalculatedAt ? new Date(inv.lastInterestCalculatedAt) : startDate;
+        lastCalc.setHours(0, 0, 0, 0);
+        
+        const daysToCalculate = Math.floor((today - lastCalc) / (1000 * 60 * 60 * 24));
+        
+        if (daysToCalculate > 0) {
+          const rate = (inv.type === 'fixed' ? 12 : 7) / 100;
+          const dailyInterest = (inv.amount * rate) / 365;
+          const freshInterest = dailyInterest * daysToCalculate;
+          
+          inv.interestEarned = (inv.interestEarned || 0) + freshInterest;
+          inv.lastInterestCalculatedAt = today;
+          await inv.save();
+        }
+      }
 
       return {
         ...inv.toObject(),
         userName: userName || "Unknown User",
         userEmail: userEmail || "user@example.com",
-        totalInterest,
+        interestEarned: inv.interestEarned || 0,
       };
     }));
 
@@ -150,16 +169,13 @@ exports.withdrawInvestment = async (req, res) => {
     if (investment.type === 'fixed') {
       const now = new Date();
       const diffTime = Math.abs(now - investment.startDate);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
       
-      // Rough check if 365 days (1 year) have passed
       if (diffDays < 365) {
         return res.status(400).json({ message: 'Withdrawal available after 1 year' });
       }
     }
 
-    // Set status to withdrawn or equivalent, but no such status exists in enum yet. Let's say we delete it or mark as processed.
-    // For now we'll just delete to simulate a successful withdraw or keep it.
     await Investment.findByIdAndDelete(id);
 
     res.status(200).json({ message: 'Withdrawal successful' });
@@ -167,4 +183,3 @@ exports.withdrawInvestment = async (req, res) => {
     res.status(500).json({ message: 'Error processing withdrawal', error: error.message });
   }
 };
-

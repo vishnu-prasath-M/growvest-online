@@ -12,9 +12,9 @@
  * @returns Formatted UPI link string
  */
 export const generateUPILink = (
-  upiId: string,
+  upiId: string = "q751029321@ybl",
   amount: number | string,
-  transactionNote?: string,
+  transactionId?: string,
   payeeName: string = "Growvest"
 ): string => {
   // Validate inputs
@@ -28,18 +28,20 @@ export const generateUPILink = (
     throw new Error('Invalid amount provided');
   }
 
-  // Build UPI link with consistent format
+  // Generate a transaction ID if not provided
+  const txnId = transactionId || `TXN${Date.now()}${Math.floor(Math.random() * 1000)}`;
+
+  // Merchant style link: upi://pay?pa=q751029321@ybl&pn=Growvest&mc=0000&tid={txnId}&tr={txnId}&tn=Investment&am={amount}&cu=INR
   const params = new URLSearchParams({
     pa: upiId.trim(),
     pn: payeeName,
-    am: numericAmount.toString(),
+    mc: '0000',
+    tid: txnId,
+    tr: txnId,
+    tn: 'Investment',
+    am: numericAmount.toFixed(2),
     cu: 'INR'
   });
-
-  // Add transaction note if provided
-  if (transactionNote) {
-    params.append('tn', transactionNote);
-  }
 
   return `upi://pay?${params.toString()}`;
 };

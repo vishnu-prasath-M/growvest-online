@@ -36,9 +36,23 @@ const investmentSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  interestEarned: {
+    type: Number,
+    default: 0,
+  },
+  lastInterestCalculatedAt: {
+    type: Date,
+    default: function() {
+      // Set to the start of the startDate day
+      const d = new Date(this.startDate || Date.now());
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+  },
+  interestLogicVersion: {
+    type: Number,
+    default: 1, // 1 is old/wrong, 2 is correct (Feature 2)
+  }
 }, { timestamps: true });
-
-// We won't persist totalInterest in DB, as requested.
-// We can compute total interest when returning data using mongoose virtual or just doing it in controller.
 
 module.exports = mongoose.model('Investment', investmentSchema);

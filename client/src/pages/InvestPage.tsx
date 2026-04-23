@@ -77,10 +77,11 @@ const InvestPage = () => {
   const [confirmed, setConfirmed] = useState(false);
   const [depositType, setDepositType] = useState<"saving" | "fixed">("saving");
   const [pastInvestments, setPastInvestments] = useState<Investment[]>([]);
-  const [upiId, setUpiId] = useState("7418662750@ibl");
+  const [upiId, setUpiId] = useState("q751029321@ybl");
   const [loading, setLoading] = useState(true);
-  const [razorpayLoading, setRazorpayLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -119,17 +120,15 @@ const InvestPage = () => {
             setUpiId(data.value);
             setError("");
           } else {
-            setUpiId("7418662750@ibl");
+            setUpiId("q751029321@ybl");
           }
         } else {
-          // Use default UPI ID if API fails
-          setUpiId("7418662750@ibl");
+          setUpiId("q751029321@ybl");
         }
       } catch (err) {
         console.error('Error fetching UPI ID:', err);
         setError('Failed to load UPI settings');
-        // Use default UPI ID on error
-        setUpiId("7418662750@ibl");
+        setUpiId("q751029321@ybl");
       } finally {
         setLoading(false);
       }
@@ -144,8 +143,6 @@ const InvestPage = () => {
   const estAnnualReturn = (pastInvestments || []).filter(i => i?.status === 'approved').reduce((acc, curr) => acc + ((curr?.amount || 0) * (curr?.type === 'fixed' ? 0.12 : 0.07)), 0);
 
 
-  const refCode = `INV-${Date.now().toString().slice(-6)}`;
-
   const handleInvest = async () => {
     if (!user || !token) {
       toast.error("Please login first to continue");
@@ -159,13 +156,37 @@ const InvestPage = () => {
       return;
     }
     setAmountError("");
-    setStep("payment");
+    
+    if (isMobile) {
+      // Mobile - Direct UPI App opening with immediate feedback
+      try {
+        setIsRedirecting(true);
+        const txnId = `TXN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        const upiLink = generateUPILink(upiId, val, txnId);
+        
+        // Trigger immediately
+        window.location.href = upiLink;
+        
+        // Move to payment page after a short delay
+        setTimeout(() => {
+          setIsRedirecting(false);
+          setStep("payment");
+        }, 1200);
+      } catch (err: any) {
+        console.error("UPI link error:", err);
+        setIsRedirecting(false);
+        toast.error("Could not generate payment link");
+      }
+    } else {
+      // Desktop - Use QR flow
+      setStep("payment");
+    }
   };
 
   const handleConfirmPaid = async () => {
     if (!user || !token) return;
     
-    setRazorpayLoading(true); // Re-using loading state for button
+    setSubmitting(true);
     try {
       const res = await fetch(`${API_URL}/api/investments`, {
         method: "POST",
@@ -191,7 +212,7 @@ const InvestPage = () => {
       console.error("Submission error:", err);
       toast.error(err.message || "Could not submit investment");
     } finally {
-      setRazorpayLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -217,8 +238,23 @@ const InvestPage = () => {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background relative overflow-x-hidden">
         <Navbar />
+        
+        {/* Redirecting Notification */}
+        <AnimatePresence>
+          {isRedirecting && (
+            <motion.div 
+              initial={{ opacity: 0, y: -20, x: "-50%" }}
+              animate={{ opacity: 1, y: 0, x: "-50%" }}
+              exit={{ opacity: 0, y: -20, x: "-50%" }}
+              className="fixed top-24 left-1/2 z-[100] bg-primary text-primary-foreground px-6 py-3 rounded-full shadow-xl flex items-center gap-3 border border-white/20 pointer-events-none"
+            >
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <p className="text-sm font-heading font-medium">Redirecting to UPI app...</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
       <div className="container py-12 max-w-5xl">
         {/* Loading indicator */}
@@ -240,7 +276,7 @@ const InvestPage = () => {
           </Link>
           <h1 className="font-heading text-3xl md:text-4xl text-foreground">Make an Investment</h1>
           <p className="text-muted-foreground font-body mt-2">
-            Enter your amount, pay via QR, and our team will verify within 2 hours.
+            Enter your amount, pay via UPI, and our team will verify within 2 hours.
           </p>
         </div>
 
@@ -381,18 +417,24 @@ const InvestPage = () => {
 
                     <Button
                       onClick={handleInvest}
-                      disabled={razorpayLoading}
+                      disabled={submitting}
                       size="lg"
                       className="w-full h-13 text-base font-body font-medium rounded-xl group"
                     >
-                      {razorpayLoading ? "Processing..." : "Proceed to Payment"}
+                      {submitting ? "Processing..." : "Proceed to Payment"}
                       <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                     </Button>
+                    
+                    {isMobile && (
+                      <p className="text-center text-[10px] font-body text-muted-foreground">
+                        Use Pay Now button to complete payment
+                      </p>
+                    )}
                   </div>
                 </motion.div>
               )}
 
-              {/* STEP 2: QR Payment */}
+              {/* STEP 2: Payment flow */}
               {step === "payment" && (
                 <motion.div
                   key="payment"
@@ -402,30 +444,58 @@ const InvestPage = () => {
                   transition={{ duration: 0.35 }}
                   className="card-premium p-8 text-center"
                 >
-                  <h2 className="font-heading text-2xl text-foreground mb-4">Scan QR to Pay</h2>
+                  <h2 className="font-heading text-2xl text-foreground mb-4">Complete Your Payment</h2>
                   <p className="text-sm font-body text-muted-foreground mb-6">
-                    Scan this QR using any UPI app like GPay, PhonePe, or Paytm to pay <strong className="text-foreground font-bold">₹{parseFloat(amount).toLocaleString("en-IN")}</strong>
+                    Pay <strong className="text-foreground font-bold">₹{(parseFloat(amount) || 0).toLocaleString("en-IN")}</strong> via UPI to start earning.
                   </p>
 
                   <div className="flex flex-col items-center justify-center mb-8">
-                    <div className="p-6 bg-white rounded-3xl border-2 border-border shadow-soft mb-4">
-                      <QRCodeSVG
-                        value={`upi://pay?pa=${upiId}&pn=Zenvest&am=${amount}&cu=INR`}
-                        size={200}
-                        level="H"
-                        includeMargin={false}
-                      />
+                    {isMobile ? (
+                      <div className="w-full max-w-xs p-8 bg-accent rounded-3xl border border-divider mb-6 flex flex-col items-center">
+                        <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                          <TrendingUp className="h-8 w-8 text-primary" />
+                        </div>
+                        <p className="text-sm font-body font-bold text-foreground">Opening your UPI app...</p>
+                        <p className="text-[11px] font-body text-muted-foreground mt-3 leading-relaxed">
+                          If app did not open:<br />
+                          • <button onClick={handleInvest} className="text-primary font-bold hover:underline">Tap 'Pay via UPI' again</button><br />
+                          • Or use QR option below
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="p-6 bg-white rounded-3xl border-2 border-border shadow-soft mb-4">
+                        <QRCodeSVG
+                          value={generateUPILink(upiId, amount, `TXN-${Date.now()}`)}
+                          size={200}
+                          level="H"
+                          includeMargin={false}
+                        />
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-accent text-accent-foreground text-xs font-body font-semibold border border-divider mb-6">
+                      <Clock className="h-3.5 w-3.5" />
+                      {isMobile ? "Waiting for your confirmation" : "Scan QR using mobile UPI app"}
                     </div>
-                    <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-accent text-accent-foreground text-xs font-body font-semibold border border-divider">
-                      <CheckCircle className="h-3.5 w-3.5" />
-                      Amount auto-filled
-                    </div>
+
+                    {isMobile && (
+                      <div className="mt-2 text-center">
+                         <p className="text-xs font-body text-muted-foreground mb-3">Having trouble? Try QR payment</p>
+                         <div className="p-4 bg-white rounded-2xl border border-border inline-block">
+                           <QRCodeSVG
+                             value={generateUPILink(upiId, amount, `QR-${Date.now()}`)}
+                             size={140}
+                             level="H"
+                           />
+                         </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-4">
-                    <div className="p-4 rounded-xl bg-muted/30 border border-border">
+                    <div className="p-4 rounded-xl bg-muted/30 border border-border text-left">
                       <p className="text-sm font-body text-foreground">
-                        Payment Done? Click confirm below. Our team will verify and approve your investment within 2 hours.
+                        <strong>Status:</strong> Payment in progress. Once you have completed the payment in your UPI app, click the button below to submit your investment for verification.
                       </p>
                     </div>
                     
@@ -440,9 +510,9 @@ const InvestPage = () => {
                       <Button
                         className="flex-1 h-12 rounded-xl font-body bg-secondary hover:bg-secondary/90 text-white"
                         onClick={handleConfirmPaid}
-                        disabled={razorpayLoading}
+                        disabled={submitting}
                       >
-                        {razorpayLoading ? "Submitting..." : "I Have Paid"}
+                        {submitting ? "Submitting..." : "I Have Paid"}
                       </Button>
                     </div>
                   </div>
@@ -467,7 +537,7 @@ const InvestPage = () => {
                   </h2>
                   <p className="text-base font-body text-muted-foreground max-w-sm mx-auto leading-relaxed mb-6">
                     Your investment of{" "}
-                    <strong className="text-foreground">₹{parseFloat(amount).toLocaleString("en-IN")}</strong>{" "}
+                    <strong className="text-foreground">₹{(parseFloat(amount) || 0).toLocaleString("en-IN")}</strong>{" "}
                     is pending verification. It will show in your dashboard once approved.
                   </p>
 
@@ -478,7 +548,7 @@ const InvestPage = () => {
 
                   <div className="rounded-2xl bg-accent border border-border p-5 mb-8 text-left space-y-3">
                     {[
-                      { label: "Amount", value: `₹${parseFloat(amount).toLocaleString("en-IN")}` },
+                      { label: "Amount", value: `₹${(parseFloat(amount) || 0).toLocaleString("en-IN")}` },
                       { label: "Status", value: "Pending" },
                       { label: "Est. Approval", value: "Within 2 hours" },
                     ].map((d) => (
@@ -513,7 +583,7 @@ const InvestPage = () => {
             <div className="card-premium p-6">
               <h3 className="font-heading text-lg text-foreground mb-5">Your Investments</h3>
               <div className="space-y-3">
-                {pastInvestments.map((inv) => {
+                {(pastInvestments || []).map((inv) => {
                   const status = inv?.status || "pending";
                   const cfg = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
                   const Icon = cfg.icon;
@@ -546,15 +616,15 @@ const InvestPage = () => {
               <div className="mt-6 pt-5 border-t border-border space-y-3">
                 <div className="flex justify-between">
                   <span className="text-sm font-body text-muted-foreground">Total Invested</span>
-                  <span className="text-sm font-body font-bold text-foreground">₹{totalInvested.toLocaleString("en-IN")}</span>
+                  <span className="text-sm font-body font-bold text-foreground">₹{(totalInvested || 0).toLocaleString("en-IN")}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm font-body text-muted-foreground">Est. Annual Return</span>
-                  <span className="text-sm font-body font-bold text-secondary">₹{Math.round(estAnnualReturn).toLocaleString("en-IN")}</span>
+                  <span className="text-sm font-body font-bold text-secondary">₹{Math.round(estAnnualReturn || 0).toLocaleString("en-IN")}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm font-body text-muted-foreground">Pending</span>
-                  <span className="text-sm font-body font-bold text-amber-600">₹{pendingAmount.toLocaleString("en-IN")}</span>
+                  <span className="text-sm font-body font-bold text-amber-600">₹{(pendingAmount || 0).toLocaleString("en-IN")}</span>
                 </div>
               </div>
             </div>
