@@ -343,14 +343,14 @@ const UserDashboard = () => {
   let returnRate = "0% yearly";
   if (activeTypes.length === 1 && activeTypes[0] === 'saving') {
     depositBadge = "Saving Deposit";
-    returnRate = "Saving: 7% yearly";
+    returnRate = "Saving: 12% yearly";
   } else if (activeTypes.length === 1 && activeTypes[0] === 'fixed') {
     depositBadge = "Fixed Deposit";
-    returnRate = "Fixed: 12% yearly";
+    returnRate = "Fixed: 24% yearly";
   } else if (activeTypes.length > 1) {
     // When user has both types, don't show a combined badge
     depositBadge = "";
-    returnRate = "7-12% yearly";
+    returnRate = "12-24% yearly";
   }
 
   const overviewCards = [
@@ -761,7 +761,7 @@ const UserDashboard = () => {
                               <div className="text-right ml-2">
                                 <p className="text-sm font-body font-semibold text-foreground">₹{safeCurrency(inv?.amount)}</p>
                                 <p className="text-xs font-body text-secondary">Interest: ₹{safeDecimal(inv?.interestEarned || 0)}</p>
-                                <p className="text-xs font-body text-muted-foreground">7% yearly</p>
+                                <p className="text-xs font-body text-muted-foreground">12% yearly</p>
                                 <span className={`text-[10px] font-body font-medium px-2 py-0.5 rounded-full ${cfg.className}`}>
                                   {cfg.label}
                                 </span>
@@ -820,7 +820,7 @@ const UserDashboard = () => {
                               <div className="text-right ml-2">
                                 <p className="text-sm font-body font-semibold text-foreground">₹{safeCurrency(inv?.amount)}</p>
                                 <p className="text-xs font-body text-secondary">Interest: ₹{safeDecimal(inv?.interestEarned || 0)}</p>
-                                <p className="text-xs font-body text-muted-foreground">12% yearly</p>
+                                <p className="text-xs font-body text-muted-foreground">24% yearly</p>
                                 <p className="text-xs font-body text-muted-foreground">
                                   {isLocked ? `Locked until ${safeDate(lockedUntil)}` : "Unlocked"}
                                 </p>

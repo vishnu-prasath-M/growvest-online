@@ -17,10 +17,13 @@ import ScrollToTop from "./components/ScrollToTop";
 import { useAuth } from "./context/AuthContext";
 
 
+import FloatingContactButton from "./components/FloatingContactButton";
+
+
 const queryClient = new QueryClient();
 
 const App = () => {
-  const { loading } = useAuth();
+  const { token, loading } = useAuth();
 
   if (loading) {
     return (
@@ -39,33 +42,66 @@ const App = () => {
         <BrowserRouter>
           <ScrollToTop />
           <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route 
-            path="/dashboard" 
-            element={
-              <ProtectedRoute>
-                <UserDashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route path="/invest" element={<InvestPage />} />
-          <Route path="/about" element={<AboutPage />} />
-          <Route 
-            path="/admin" 
-            element={
-              <ProtectedRoute requireAdmin={true}>
-                <AdminDashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+            {/* Root route: Redirect based on auth status */}
+            <Route 
+              path="/" 
+              element={token ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />} 
+            />
+
+            {/* Public routes with redirect if already logged in */}
+            <Route 
+              path="/login" 
+              element={token ? <Navigate to="/dashboard" replace /> : <Login />} 
+            />
+            <Route 
+              path="/register" 
+              element={token ? <Navigate to="/dashboard" replace /> : <Register />} 
+            />
+
+            {/* Protected routes */}
+            <Route 
+              path="/dashboard" 
+              element={
+                <ProtectedRoute>
+                  <UserDashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/invest" 
+              element={
+                <ProtectedRoute>
+                  <InvestPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/about" 
+              element={
+                <ProtectedRoute>
+                  <AboutPage />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* Admin route */}
+            <Route 
+              path="/admin" 
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } 
+            />
+
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+          <FloatingContactButton />
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
 };
 
 export default App;

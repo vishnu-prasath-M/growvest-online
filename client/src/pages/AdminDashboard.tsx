@@ -663,7 +663,7 @@ const AdminDashboard = () => {
                                     <div className="rounded-xl border border-border bg-card p-4">
                                       <div className="flex items-center justify-between mb-3">
                                         <p className="text-xs font-body font-semibold text-muted-foreground uppercase tracking-wider">Saving Deposit</p>
-                                        <span className="text-xs font-body font-bold text-primary bg-primary/5 border border-primary/10 px-2 py-0.5 rounded-full">7% / yr</span>
+                                        <span className="text-xs font-body font-bold text-primary bg-primary/5 border border-primary/10 px-2 py-0.5 rounded-full">12% / yr</span>
                                       </div>
                                       <div className="space-y-2">
                                         {[
@@ -684,7 +684,7 @@ const AdminDashboard = () => {
                                     <div className="rounded-xl border border-border bg-card p-4">
                                       <div className="flex items-center justify-between mb-3">
                                         <p className="text-xs font-body font-semibold text-muted-foreground uppercase tracking-wider">Fixed Deposit</p>
-                                        <span className="text-xs font-body font-bold text-secondary bg-secondary/5 border border-secondary/10 px-2 py-0.5 rounded-full">12% / yr</span>
+                                        <span className="text-xs font-body font-bold text-secondary bg-secondary/5 border border-secondary/10 px-2 py-0.5 rounded-full">24% / yr</span>
                                       </div>
                                       <div className="space-y-2">
                                         {[

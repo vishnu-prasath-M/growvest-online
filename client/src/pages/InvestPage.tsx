@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, CheckCircle, Clock, XCircle, TrendingUp, Copy } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle, Clock, XCircle, TrendingUp, Copy, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -260,6 +260,33 @@ const InvestPage = () => {
     }
   };
 
+  const downloadQR = () => {
+    const svg = document.getElementById("investment-qr");
+    if (!svg) return;
+    
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    const img = new Image();
+    
+    img.onload = () => {
+      canvas.width = 220; // Match size in QRCodeSVG
+      canvas.height = 220;
+      if (ctx) {
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        const pngFile = canvas.toDataURL("image/png");
+        const downloadLink = document.createElement("a");
+        downloadLink.download = `Growvest-QR-${amount || "investment"}.png`;
+        downloadLink.href = pngFile;
+        downloadLink.click();
+      }
+    };
+    
+    img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+  };
+
   // handleConfirm is no longer needed with Razorpay automated verification
 
 
@@ -366,7 +393,7 @@ const InvestPage = () => {
                           >
                             <div className="flex items-center justify-between mb-1">
                               <h3 className="font-heading font-bold text-foreground">Saving Deposit</h3>
-                              <span className="text-sm font-body font-bold text-primary">7%</span>
+                              <span className="text-sm font-body font-bold text-primary">12%</span>
                             </div>
                             <p className="text-xs font-body text-muted-foreground">Withdraw anytime</p>
                           </div>
@@ -379,7 +406,7 @@ const InvestPage = () => {
                           >
                             <div className="flex items-center justify-between mb-1">
                               <h3 className="font-heading font-bold text-foreground">Fixed Deposit</h3>
-                              <span className="text-sm font-body font-bold text-primary">12%</span>
+                              <span className="text-sm font-body font-bold text-primary">24%</span>
                             </div>
                             <p className="text-xs font-body text-muted-foreground">Locked for 1 year</p>
                           </div>
@@ -433,10 +460,10 @@ const InvestPage = () => {
                         <div className="rounded-2xl bg-accent border border-border p-4">
                           <p className="text-xs font-body text-muted-foreground mb-1">Estimated annual return</p>
                           <p className="text-2xl font-heading font-bold text-secondary">
-                            ₹{Math.round(parseFloat(amount) * (depositType === "saving" ? 0.07 : 0.12)).toLocaleString("en-IN")}
+                            ₹{Math.round(parseFloat(amount) * (depositType === "saving" ? 0.12 : 0.24)).toLocaleString("en-IN")}
                           </p>
                           <p className="text-xs font-body text-muted-foreground mt-0.5">
-                            at {depositType === "saving" ? "7%" : "12%"} per year · returns credited Daily
+                            at {depositType === "saving" ? "12%" : "24%"} per year · returns credited Daily
                           </p>
                         </div>
                       )}
@@ -475,13 +502,27 @@ const InvestPage = () => {
                     </p>
 
                     <div className="flex flex-col items-center justify-center mb-8">
-                      <div className="p-6 bg-white rounded-3xl border-2 border-border shadow-soft mb-6">
+                      <div className="p-6 bg-white rounded-3xl border-2 border-border shadow-soft mb-4">
                         <QRCodeSVG
+                          id="investment-qr"
                           value={`upi://pay?pa=${upiId}&pn=Growvest&am=${amount}&cu=INR`}
                           size={220}
                           level="H"
                           includeMargin={false}
                         />
+                      </div>
+                      
+                      {/* Download Option for Small Screens */}
+                      <div className="lg:hidden mb-6">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-9 rounded-xl gap-2 font-body border-primary/20 hover:border-primary/40 hover:bg-primary/5"
+                          onClick={downloadQR}
+                        >
+                          <Download className="h-4 w-4 text-primary" />
+                          Download QR Code
+                        </Button>
                       </div>
                       
                       <p className="text-sm font-body font-medium text-foreground mb-4">

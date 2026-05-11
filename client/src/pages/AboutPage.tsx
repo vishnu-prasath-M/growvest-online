@@ -160,7 +160,7 @@ const AboutPage = () => {
               </div>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-heading text-2xl font-bold text-foreground">Saving Deposit</h3>
-                <span className="text-3xl font-heading font-bold text-primary">7%</span>
+                <span className="text-3xl font-heading font-bold text-primary">12%</span>
               </div>
               <p className="text-sm font-body text-muted-foreground font-medium mb-1">per year · calculated daily</p>
               <p className="text-sm font-body text-muted-foreground leading-relaxed mb-6">
@@ -173,7 +173,7 @@ const AboutPage = () => {
                   "Withdraw anytime, no lock-in",
                   "Daily interest on your balance",
                   "Start with as little as ₹1",
-                  "Interest = (Balance × 7%) / 365 per day",
+                  "Interest = (Balance × 12%) / 365 per day",
                 ].map((f) => (
                   <li key={f} className="flex items-start gap-2.5 text-sm font-body text-foreground">
                     <CheckCircle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
@@ -197,7 +197,7 @@ const AboutPage = () => {
               </div>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-heading text-2xl font-bold text-foreground">Fixed Deposit</h3>
-                <span className="text-3xl font-heading font-bold text-secondary">12%</span>
+                <span className="text-3xl font-heading font-bold text-secondary">24%</span>
               </div>
               <p className="text-sm font-body text-muted-foreground font-medium mb-1">per year · calculated daily</p>
               <p className="text-sm font-body text-muted-foreground leading-relaxed mb-6">
@@ -207,10 +207,10 @@ const AboutPage = () => {
               </p>
               <ul className="space-y-3">
                 {[
-                  "Higher return at 12% per year",
+                  "Higher return at 24% per year",
                   "Maturity after 1 year",
                   "Daily interest accumulation",
-                  "Interest = (Balance × 12%) / 365 per day",
+                  "Interest = (Balance × 24%) / 365 per day",
                 ].map((f) => (
                   <li key={f} className="flex items-start gap-2.5 text-sm font-body text-foreground">
                     <CheckCircle className="h-4 w-4 text-secondary shrink-0 mt-0.5" />
@@ -240,12 +240,12 @@ const AboutPage = () => {
             </p>
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="p-3 rounded-xl bg-card border border-border font-mono text-xs text-foreground">
-                <span className="text-muted-foreground"># Saving (7%/yr)</span><br />
-                Daily = (Balance × 7%) ÷ 365
+                <span className="text-muted-foreground"># Saving (12%/yr)</span><br />
+                Daily = (Balance × 12%) ÷ 365
               </div>
               <div className="p-3 rounded-xl bg-card border border-border font-mono text-xs text-foreground">
-                <span className="text-muted-foreground"># Fixed (12%/yr)</span><br />
-                Daily = (Balance × 12%) ÷ 365
+                <span className="text-muted-foreground"># Fixed (24%/yr)</span><br />
+                Daily = (Balance × 24%) ÷ 365
               </div>
             </div>
           </motion.div>
@@ -286,7 +286,7 @@ const AboutPage = () => {
               {
                 step: "02",
                 title: "Choose & Invest",
-                desc: "Pick Saving (7%) or Fixed (12%) and enter your amount.",
+                desc: "Pick Saving (12%) or Fixed (24%) and enter your amount.",
                 icon: Wallet,
                 color: "bg-primary/5 text-primary border-primary/10",
               },
