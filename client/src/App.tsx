@@ -43,10 +43,7 @@ const App = () => {
           <ScrollToTop />
           <Routes>
             {/* Root route: Redirect based on auth status */}
-            <Route 
-              path="/" 
-              element={token ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />} 
-            />
+            <Route path="/" element={<Index />} />
 
             {/* Public routes with redirect if already logged in */}
             <Route 
