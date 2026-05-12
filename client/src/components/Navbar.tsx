@@ -42,9 +42,7 @@ const Navbar = () => {
       }`}
     >
       <div className="container flex h-[72px] items-center justify-between">
-        <Link to="/" className="flex items-center">
-          <ZenvestLogo />
-        </Link>
+        <ZenvestLogo />
 
         {/* Desktop nav */}
         <div className="hidden md:flex items-center gap-1">

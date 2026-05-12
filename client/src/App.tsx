@@ -43,16 +43,19 @@ const App = () => {
           <ScrollToTop />
           <Routes>
             {/* Root route: Redirect based on auth status */}
-            <Route path="/" element={<Index />} />
+            <Route 
+              path="/" 
+              element={token ? <Index /> : <Navigate to="/login" replace />} 
+            />
 
             {/* Public routes with redirect if already logged in */}
             <Route 
               path="/login" 
-              element={token ? <Navigate to="/dashboard" replace /> : <Login />} 
+              element={token ? <Navigate to="/" replace /> : <Login />} 
             />
             <Route 
               path="/register" 
-              element={token ? <Navigate to="/dashboard" replace /> : <Register />} 
+              element={token ? <Navigate to="/" replace /> : <Register />} 
             />
 
             {/* Protected routes */}

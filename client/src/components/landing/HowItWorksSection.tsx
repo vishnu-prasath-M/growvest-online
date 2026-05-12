@@ -17,7 +17,7 @@ const steps = [
     num: "03",
     title: "Admin verifies your payment",
     desc: "Our team manually checks and confirms your payment. You'll see a 'Waiting for Approval' status until then.",
-    detail: "Verified within 2 hours",
+    detail: "Verified within 12 hours",
   },
   {
     num: "04",
@@ -61,7 +61,7 @@ const HowItWorksSection = () => (
           >
             Investing on Growvest is straightforward. Enter an amount, scan a QR
             code, wait for admin approval, and start tracking your returns — all
-            within 2 hours.
+            within 12 hours.
           </motion.p>
         </div>
       </div>

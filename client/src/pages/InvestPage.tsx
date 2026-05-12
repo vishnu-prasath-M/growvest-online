@@ -333,7 +333,7 @@ const InvestPage = () => {
             </Link>
             <h1 className="font-heading text-3xl md:text-4xl text-foreground">Make an Investment</h1>
             <p className="text-muted-foreground font-body mt-2">
-              Enter your amount, pay via UPI, and our team will verify within 2 hours.
+              Enter your amount, pay via UPI, and our team will verify within 12 hours.
             </p>
           </div>
 
@@ -606,7 +606,7 @@ const InvestPage = () => {
                       {[
                         { label: "Amount", value: `₹${(parseFloat(amount) || 0).toLocaleString("en-IN")}` },
                         { label: "Status", value: "Pending" },
-                        { label: "Est. Approval", value: "Within 2 hours" },
+                        { label: "Est. Approval", value: "Within 12 hours" },
                       ].map((d) => (
                         <div key={d.label} className="flex items-center justify-between">
                           <span className="text-sm font-body text-muted-foreground">{d.label}</span>
@@ -689,7 +689,7 @@ const InvestPage = () => {
               <div className="card-premium p-6 mt-4">
                 <h3 className="font-heading text-base text-foreground mb-2">Need help?</h3>
                 <p className="text-sm font-body text-muted-foreground leading-relaxed mb-4">
-                  If your payment is not showing up after 2 hours, contact our support team with your Reference ID.
+                  If your payment is not showing up after 12 hours, contact our support team with your Reference ID.
                 </p>
                 <a
                   href="mailto:support@growvest.in"

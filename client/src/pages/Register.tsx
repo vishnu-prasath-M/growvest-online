@@ -33,7 +33,7 @@ const Register = () => {
         setError(data.message || "Registration failed");
       } else {
         login(data);
-        navigate("/dashboard"); // or wherever it should redirect
+        navigate("/"); 
       }
     } catch (err) {
       setError("Server error. Please try again later.");

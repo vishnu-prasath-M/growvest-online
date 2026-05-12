@@ -293,7 +293,7 @@ const AboutPage = () => {
               {
                 step: "03",
                 title: "Pay via UPI",
-                desc: "Scan the QR code and pay. Our team verifies within 2 hours.",
+                desc: "Scan the QR code and pay. Our team verifies within 12 hours.",
                 icon: CheckCircle,
                 color: "bg-amber-50 text-amber-600 border-amber-100",
               },
@@ -362,7 +362,7 @@ const AboutPage = () => {
               {
                 icon: Clock,
                 title: "Fast Approvals",
-                desc: "Payments are reviewed and approved within 2 business hours. No long waiting periods.",
+                desc: "Payments are reviewed and approved within 12 business hours. No long waiting periods.",
                 color: "bg-amber-50 text-amber-600 border-amber-100",
               },
             ].map((w, i) => (

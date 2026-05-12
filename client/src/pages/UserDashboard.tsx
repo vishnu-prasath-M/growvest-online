@@ -506,9 +506,7 @@ const UserDashboard = () => {
       >
         <div className="p-5 border-b border-border flex items-center justify-between">
           <div>
-            <Link to="/">
-              <ZenvestLogo size="sm" />
-            </Link>
+            <ZenvestLogo size="sm" />
             <p className="text-xs font-body text-muted-foreground mt-1">Profile</p>
           </div>
           <button
@@ -554,9 +552,7 @@ const UserDashboard = () => {
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex flex-col w-64 shrink-0 bg-card border-r border-border">
         <div className="p-5 border-b border-border">
-          <Link to="/">
-            <ZenvestLogo />
-          </Link>
+          <ZenvestLogo />
         </div>
         {/* User pill */}
         <div className="mx-4 mt-5 p-3 rounded-2xl bg-accent border border-border flex items-center gap-3">

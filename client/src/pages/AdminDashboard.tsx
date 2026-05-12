@@ -276,9 +276,7 @@ const AdminDashboard = () => {
         }`}
       >
         <div className="flex items-center justify-between p-5 border-b border-border">
-          <Link to="/">
-            <ZenvestLogo />
-          </Link>
+          <ZenvestLogo />
           <button
             className="lg:hidden p-1 text-muted-foreground hover:text-foreground"
             onClick={() => setSidebarOpen(false)}
