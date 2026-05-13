@@ -1168,7 +1168,7 @@ const UserDashboard = () => {
                   <div className="rounded-2xl bg-amber-50 border border-amber-200 p-4 flex items-start gap-3">
                     <Clock className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
                     <p className="text-xs font-body text-amber-700 leading-relaxed">
-                      Withdrawals are reviewed manually by our team and processed within 2–3 hours.
+                      Withdrawals are reviewed manually by our team and processed within 12 hours.
                     </p>
                   </div>
 

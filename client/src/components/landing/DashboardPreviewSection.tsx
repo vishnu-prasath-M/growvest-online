@@ -191,7 +191,7 @@ const DashboardPreviewSection = () => (
             className="absolute -bottom-4 -left-6 bg-primary text-primary-foreground rounded-2xl px-5 py-3 shadow-elevated"
           >
             <p className="text-xs font-body opacity-70">Return Rate</p>
-            <p className="text-xl font-heading font-bold">15.2% <span className="text-sm font-body opacity-70">/ yr</span></p>
+            <p className="text-xl font-heading font-bold">18% <span className="text-sm font-body opacity-70">/ yr</span></p>
           </motion.div>
         </motion.div>
       </div>

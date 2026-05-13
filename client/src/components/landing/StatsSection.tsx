@@ -4,7 +4,7 @@ const stats = [
   { value: "₹4.2Cr+", label: "Total Invested", sub: "Across all portfolios" },
   { value: "1,200+", label: "Active Investors", sub: "Growing every month" },
   { value: "₹68L+", label: "Returns Paid Out", sub: "Verified & processed" },
-  { value: "15.2%", label: "Avg. Annual Return", sub: "Historical average" },
+  { value: "18%", label: "Avg. Annual Return", sub: "Historical average" },
 ];
 
 const StatsSection = () => (

@@ -5,7 +5,7 @@ const steps = [
     num: "01",
     title: "Enter your investment amount",
     desc: "Log in to your account, enter the amount you want to invest, and click 'Invest Now'.",
-    detail: "Minimum ₹500",
+    detail: "Minimum ₹1",
   },
   {
     num: "02",
@@ -23,7 +23,7 @@ const steps = [
     num: "04",
     title: "Track your investment & returns",
     desc: "Once approved, your investment appears in your dashboard with real-time return calculations.",
-    detail: "Avg. 15.2% annual return",
+    detail: "Avg. 18% annual return",
   },
 ];
 

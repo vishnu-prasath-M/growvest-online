@@ -102,6 +102,18 @@ const AdminDashboard = () => {
       navigate('/dashboard');
     }
   }, [authUser, navigate]);
+
+  // Prevent background scroll when sidebar is open
+  useEffect(() => {
+    if (sidebarOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "auto";
+    }
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, [sidebarOpen]);
   useEffect(() => {
     if (!token) return;
 
@@ -276,7 +288,9 @@ const AdminDashboard = () => {
         }`}
       >
         <div className="flex items-center justify-between p-5 border-b border-border">
-          <ZenvestLogo />
+          <div className="max-w-[140px] overflow-hidden">
+            <ZenvestLogo />
+          </div>
           <button
             className="lg:hidden p-1 text-muted-foreground hover:text-foreground"
             onClick={() => setSidebarOpen(false)}
@@ -844,7 +858,7 @@ const AdminDashboard = () => {
                   
                   return (
                     <div className="flex flex-col items-center gap-4">
-                      <div className="rounded-2xl border-2 border-border p-4 bg-white shadow-card">
+                      <div id="qr-download-area" className="rounded-2xl border-2 border-border p-4 bg-white shadow-card">
                         <QRCodeSVG
                           value={upiLink}
                           size={180}
@@ -853,6 +867,42 @@ const AdminDashboard = () => {
                           level="H"
                         />
                       </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9 px-4 rounded-xl font-body text-xs flex items-center gap-2 border-primary/20 text-primary hover:bg-primary/5"
+                        onClick={() => {
+                          const svg = document.querySelector("#qr-download-area svg") as SVGElement;
+                          if (!svg) return;
+                          
+                          const svgData = new XMLSerializer().serializeToString(svg);
+                          const canvas = document.createElement("canvas");
+                          const ctx = canvas.getContext("2d");
+                          const img = new Image();
+                          
+                          img.onload = () => {
+                            canvas.width = img.width * 2; // Higher quality
+                            canvas.height = img.height * 2;
+                            if (ctx) {
+                              ctx.fillStyle = "#ffffff";
+                              ctx.fillRect(0, 0, canvas.width, canvas.height);
+                              ctx.scale(2, 2);
+                              ctx.drawImage(img, 0, 0);
+                            }
+                            
+                            const pngFile = canvas.toDataURL("image/png");
+                            const downloadLink = document.createElement("a");
+                            downloadLink.download = `Zenvest-QR-${payModalData.id}.png`;
+                            downloadLink.href = pngFile;
+                            downloadLink.click();
+                          };
+                          
+                          img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+                        }}
+                      >
+                        <ArrowDownToLine className="h-3.5 w-3.5" />
+                        Download QR
+                      </Button>
                       <p className="text-sm font-body font-medium text-primary">
                         Scan this QR using any UPI app to pay
                       </p>

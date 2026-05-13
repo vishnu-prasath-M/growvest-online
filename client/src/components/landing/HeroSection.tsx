@@ -2,9 +2,12 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 import heroPerson from "@/assets/hero-person.jpg";
 
-const HeroSection = () => (
+const HeroSection = () => {
+  const { token } = useAuth();
+  return (
   <section className="relative min-h-[96vh] flex items-center overflow-hidden bg-background">
     {/* Layered background */}
     <div className="absolute inset-0 pointer-events-none">
@@ -92,16 +95,17 @@ const HeroSection = () => (
 
           {/* CTAs */}
           <div className="flex flex-wrap items-center gap-3">
-            <Link to="/register">
+            <Link to={token ? "/dashboard" : "/register"}>
               <Button
                 size="lg"
                 className="group px-7 h-12 text-base font-body font-medium rounded-xl shadow-elevated hover:shadow-hover transition-shadow"
               >
-                Start Investing
+                <span className="hidden md:inline">Start Investing</span>
+                <span className="inline md:hidden">Dashboard</span>
                 <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Button>
             </Link>
-            <Link to="/login">
+            <Link to="/login" className="hidden md:block">
               <Button
                 variant="outline"
                 size="lg"
@@ -121,7 +125,7 @@ const HeroSection = () => (
           >
             {[
               { value: "₹4.2Cr+", label: "Total Invested" },
-              { value: "15.2%", label: "Avg. Return Rate" },
+              { value: "18%", label: "Avg. Return Rate" },
               { value: "1,200+", label: "Active Investors" },
             ].map((stat, i) => (
               <div key={i}>
@@ -176,7 +180,7 @@ const HeroSection = () => (
               </div>
               <div>
                 <p className="text-[10px] font-body text-muted-foreground uppercase tracking-wide">Returns</p>
-                <p className="text-base font-heading font-bold text-foreground">+15.2%</p>
+                <p className="text-base font-heading font-bold text-foreground">+18%</p>
               </div>
             </div>
           </motion.div>
@@ -210,6 +214,7 @@ const HeroSection = () => (
       </div>
     </div>
   </section>
-);
+  );
+};
 
 export default HeroSection;
