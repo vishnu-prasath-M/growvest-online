@@ -3,7 +3,9 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 interface User {
   _id: string;
   name: string;
-  email: string;
+  username: string;
+  mobileNumber: string;
+  email?: string;
   role: string;
   balance?: number;
 }
@@ -86,6 +88,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const userToStore = {
       _id: userData._id,
       name: userData.name,
+      username: userData.username,
+      mobileNumber: userData.mobileNumber,
       email: userData.email,
       role: userData.role,
       balance: userData.balance

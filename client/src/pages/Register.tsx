@@ -10,8 +10,8 @@ const API_URL = import.meta.env.VITE_API_URL || (window.location.hostname === "l
 
 const Register = () => {
   const { login } = useAuth();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const [mobileNumber, setMobileNumber] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,17 +23,16 @@ const Register = () => {
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/api/auth/register`, {
-
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ username, mobileNumber, password }),
       });
       const data = await res.json();
       if (!res.ok) {
         setError(data.message || "Registration failed");
       } else {
         login(data);
-        navigate("/"); 
+        navigate("/dashboard"); 
       }
     } catch (err) {
       setError("Server error. Please try again later.");
@@ -56,12 +55,12 @@ const Register = () => {
 
           <form className="mt-6 space-y-4" onSubmit={handleRegister}>
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input id="name" required placeholder="John Doe" value={name} onChange={(e) => setName(e.target.value)} />
+              <Label htmlFor="username">Username</Label>
+              <Input id="username" required placeholder="johndoe123" value={username} onChange={(e) => setUsername(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" required placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Label htmlFor="mobileNumber">Mobile Number</Label>
+              <Input id="mobileNumber" type="tel" required placeholder="9876543210" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>

@@ -36,7 +36,7 @@ const Login = () => {
         if (data.role === "admin") {
           navigate("/admin");
         } else {
-          navigate("/");
+          navigate("/dashboard");
         }
       }
     } catch (err) {
@@ -60,8 +60,8 @@ const Login = () => {
 
           <form className="mt-6 space-y-4" onSubmit={handleLogin}>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" required placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Label htmlFor="email">Mobile Number or Email</Label>
+              <Input id="email" type="text" required placeholder="9876543210 or you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>

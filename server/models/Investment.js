@@ -26,7 +26,11 @@ const investmentSchema = new mongoose.Schema({
   },
   userEmail: {
     type: String,
-    required: true,
+    required: false,
+  },
+  mobileNumber: {
+    type: String,
+    required: false,
   },
   interestRate: {
     type: Number,

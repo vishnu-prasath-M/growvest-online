@@ -5,7 +5,7 @@ const { syncInvestmentInterest } = require('./userController');
 
 exports.createInvestment = async (req, res) => {
   try {
-    const { amount, type, userName, userEmail } = req.body;
+    const { amount, type, userName, userEmail, mobileNumber } = req.body;
     const refCode = `INV-${Date.now().toString().slice(-6)}`;
     const interestRate = type === 'fixed' ? 12 : 7;
 
@@ -16,6 +16,7 @@ exports.createInvestment = async (req, res) => {
       type,
       userName,
       userEmail,
+      mobileNumber,
       interestRate,
       startDate: new Date(),
     });

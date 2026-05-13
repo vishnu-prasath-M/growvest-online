@@ -225,7 +225,12 @@ const InvestPage = () => {
     setStep("payment");
   };
 
-  const handleConfirmPaid = async () => {
+  const handleConfirmPaid = () => {
+    if (!user || !token) return;
+    setStep("status");
+  };
+
+  const handleFinalConfirm = async () => {
     if (!user || !token) return;
 
     setSubmitting(true);
@@ -239,8 +244,9 @@ const InvestPage = () => {
         body: JSON.stringify({
           amount: parseFloat(amount),
           type: depositType,
-          userName: user.name,
-          userEmail: user.email
+          userName: user.username || user.name,
+          userEmail: user.email,
+          mobileNumber: user.mobileNumber
         })
       });
 
@@ -248,7 +254,8 @@ const InvestPage = () => {
         const data = await res.json();
         setInvestmentId(data._id || null);
         toast.success("Investment submitted for verification!");
-        setStep("status");
+        // We stay on status page but maybe update its state to show "Awaiting Verification"
+        setConfirmed(true);
       } else {
         throw new Error("Failed to submit investment");
       }
@@ -589,23 +596,25 @@ const InvestPage = () => {
                       <Clock className="h-8 w-8 text-amber-500" />
                     </div>
                     <h2 className="font-heading text-2xl text-foreground mb-3">
-                      Payment submitted for verification
+                      {confirmed ? "Payment submitted for verification" : "Confirm Your Payment"}
                     </h2>
                     <p className="text-base font-body text-muted-foreground max-w-sm mx-auto leading-relaxed mb-6">
-                      Your investment of{" "}
-                      <strong className="text-foreground">₹{(parseFloat(amount) || 0).toLocaleString("en-IN")}</strong>{" "}
-                      is pending verification. It will show in your dashboard once approved.
+                      {confirmed 
+                        ? `Your investment of ₹${(parseFloat(amount) || 0).toLocaleString("en-IN")} is pending verification. It will show in your dashboard once approved.`
+                        : "Please confirm that you have completed the payment. Once confirmed, our team will verify your transaction."}
                     </p>
 
                     <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-amber-50 border border-amber-200 mb-8">
                       <Clock className="h-4 w-4 text-amber-600" />
-                      <span className="text-sm font-body font-medium text-amber-700">Awaiting Verification</span>
+                      <span className="text-sm font-body font-medium text-amber-700">
+                        {confirmed ? "Awaiting Verification" : "Payment Pending Confirmation"}
+                      </span>
                     </div>
 
                     <div className="rounded-2xl bg-accent border border-border p-5 mb-8 text-left space-y-3">
                       {[
                         { label: "Amount", value: `₹${(parseFloat(amount) || 0).toLocaleString("en-IN")}` },
-                        { label: "Status", value: "Pending" },
+                        { label: "Status", value: confirmed ? "Pending" : "Awaiting Confirmation" },
                         { label: "Est. Approval", value: "Within 12 hours" },
                       ].map((d) => (
                         <div key={d.label} className="flex items-center justify-between">
@@ -616,18 +625,39 @@ const InvestPage = () => {
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                      <Link to="/dashboard">
-                        <Button className="rounded-xl font-body font-medium px-8 h-12">
-                          Go to Dashboard
-                        </Button>
-                      </Link>
-                      <Button
-                        variant="outline"
-                        className="rounded-xl font-body font-medium h-12"
-                        onClick={() => { clearPersistedState(); setStep("amount"); setAmount(""); setConfirmed(false); }}
-                      >
-                        Make Another Investment
-                      </Button>
+                      {!confirmed ? (
+                        <>
+                          <Button
+                            variant="outline"
+                            className="rounded-xl font-body font-medium h-12 flex-1"
+                            onClick={() => setStep("payment")}
+                          >
+                            Back
+                          </Button>
+                          <Button
+                            className="rounded-xl font-body font-medium h-12 flex-1 bg-secondary hover:bg-secondary/90 text-white"
+                            onClick={handleFinalConfirm}
+                            disabled={submitting}
+                          >
+                            {submitting ? "Confirming..." : "Confirm Payment"}
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Link to="/dashboard">
+                            <Button className="rounded-xl font-body font-medium px-8 h-12">
+                              Go to Dashboard
+                            </Button>
+                          </Link>
+                          <Button
+                            variant="outline"
+                            className="rounded-xl font-body font-medium h-12"
+                            onClick={() => { clearPersistedState(); setStep("amount"); setAmount(""); setConfirmed(false); }}
+                          >
+                            Make Another Investment
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </motion.div>
                 )}

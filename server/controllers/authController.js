@@ -11,32 +11,34 @@ const generateToken = (id) => {
 
 exports.registerUser = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { username, mobileNumber, password } = req.body;
 
-    if (!name || !email || !password) {
+    if (!username || !mobileNumber || !password) {
       return res.status(400).json({ message: 'Please provide all fields' });
     }
 
-    const userExists = await User.findOne({ email });
+    const userExists = await User.findOne({ $or: [{ username }, { mobileNumber }] });
 
     if (userExists) {
-      return res.status(400).json({ message: 'User already exists' });
+      return res.status(400).json({ message: 'User with this username or mobile number already exists' });
     }
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const user = await User.create({
-      name,
-      email,
+      username,
+      name: username, // Default name to username
+      mobileNumber,
       password: hashedPassword,
     });
 
     if (user) {
       res.status(201).json({
         _id: user._id,
+        username: user.username,
         name: user.name,
-        email: user.email,
+        mobileNumber: user.mobileNumber,
         token: generateToken(user._id),
       });
     } else {
@@ -50,17 +52,23 @@ exports.registerUser = async (req, res) => {
 
 exports.loginUser = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body; // 'email' can be email or mobileNumber
 
     if (!email || !password) {
       return res.status(400).json({ message: 'Please provide all fields' });
     }
 
-    const user = await User.findOne({ $or: [{ email: email }, { name: email }] });
+    // Allow login via email OR mobileNumber OR username
+    const user = await User.findOne({ 
+      $or: [
+        { email: email }, 
+        { mobileNumber: email },
+        { username: email }
+      ] 
+    });
 
-    // "check if not logged in show user not found please login"
     if (!user) {
-      return res.status(404).json({ message: 'User not found. Please log in or sign up.' });
+      return res.status(404).json({ message: 'User not found. Please sign up.' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -72,7 +80,9 @@ exports.loginUser = async (req, res) => {
     res.json({
       _id: user._id,
       name: user.name,
+      username: user.username,
       email: user.email,
+      mobileNumber: user.mobileNumber,
       role: user.role,
       token: generateToken(user._id),
     });
@@ -89,7 +99,9 @@ exports.getMe = async (req, res) => {
       res.json({
         _id: user._id,
         name: user.name,
+        username: user.username,
         email: user.email,
+        mobileNumber: user.mobileNumber,
         role: user.role,
         balance: user.balance
       });
