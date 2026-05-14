@@ -11,6 +11,7 @@ const API_URL = import.meta.env.VITE_API_URL || (window.location.hostname === "l
 const Register = () => {
   const { login } = useAuth();
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -25,7 +26,7 @@ const Register = () => {
       const res = await fetch(`${API_URL}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, mobileNumber, password }),
+        body: JSON.stringify({ username, email, mobileNumber, password }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -57,6 +58,10 @@ const Register = () => {
             <div className="space-y-2">
               <Label htmlFor="username">Username</Label>
               <Input id="username" required placeholder="johndoe123" value={username} onChange={(e) => setUsername(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email Address</Label>
+              <Input id="email" type="email" required placeholder="john@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="mobileNumber">Mobile Number</Label>

@@ -11,16 +11,17 @@ const generateToken = (id) => {
 
 exports.registerUser = async (req, res) => {
   try {
-    const { username, mobileNumber, password } = req.body;
+    const { username, mobileNumber, password, email } = req.body;
+    const name = req.body.name || username;
 
     if (!username || !mobileNumber || !password) {
       return res.status(400).json({ message: 'Please provide all fields' });
     }
 
-    const userExists = await User.findOne({ $or: [{ username }, { mobileNumber }] });
+    const userExists = await User.findOne({ $or: [{ username }, { mobileNumber }, { email: email || 'never_match_this_random_string' }] });
 
     if (userExists) {
-      return res.status(400).json({ message: 'User with this username or mobile number already exists' });
+      return res.status(400).json({ message: 'User with this username, mobile number or email already exists' });
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -28,8 +29,9 @@ exports.registerUser = async (req, res) => {
 
     const user = await User.create({
       username,
-      name: username, // Default name to username
+      name,
       mobileNumber,
+      email,
       password: hashedPassword,
     });
 

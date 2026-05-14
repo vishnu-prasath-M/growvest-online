@@ -30,7 +30,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Dummy Mongo URL since user will add later
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/zenvest-dummy';
 
 // Fix for Node.js DNS SRV lookup issues on Windows
@@ -60,6 +59,8 @@ mongoose.connect(MONGO_URI)
         const hashedPassword = await bcrypt.hash('Durga@11', salt);
         const admin = await User.create({
           name: 'Admin',
+          username: 'admin',
+          mobileNumber: '0000000000',
           email: adminEmail,
           password: hashedPassword,
           role: 'admin'

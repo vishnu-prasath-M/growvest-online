@@ -130,28 +130,33 @@ const UserDashboard = () => {
       return;
     }
 
-    fetch(`${API_URL}/api/users/email/${authUser.email}`, {
+    fetch(`${API_URL}/api/users/profile`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => {
         if (!res.ok) {
-          if (res.status === 404) {
-             throw new Error("User not found in database");
+          if (res.status === 401 || res.status === 403) {
+            logout();
+            navigate('/login');
+            throw new Error("Session expired. Please log in again.");
           }
-          throw new Error("Failed to fetch user data");
+          if (res.status === 404) {
+             throw new Error("User profile not found");
+          }
+          throw new Error("Failed to fetch user profile");
         }
         return res.json();
       })
       .then(data => {
-        if (data && data.email) {
+        if (data && (data.email || data.username)) {
           setDbUser(data);
         } else {
           setUserError("User data is incomplete. Please log in again.");
         }
       })
       .catch(err => {
-        console.error("Error verifying user:", err);
-        setUserError(err.message || "Failed to load user data. Please try again.");
+        console.error("Error verifying user profile:", err);
+        setUserError(err.message || "Failed to load user profile. Please try again.");
       })
       .finally(() => {
         setUserLoading(false);
@@ -281,8 +286,8 @@ const UserDashboard = () => {
 
   // Fetch user balance from backend
   useEffect(() => {
-    if (userEmail && token) {
-      fetch(`${API_URL}/api/users/email/${userEmail}`, {
+    if (token) {
+      fetch(`${API_URL}/api/users/profile`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
         .then(res => res.json())

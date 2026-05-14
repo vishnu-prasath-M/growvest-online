@@ -12,6 +12,9 @@ router.get('/admin/total-balance', protect, admin, userController.getTotalPayabl
 // GET /api/users/detail/:email - Get detailed user info for admin dropdown (Admin only)
 router.get('/detail/:email', protect, admin, userController.getUserDetailByEmail);
 
+// GET /api/users/profile - Get current user profile (using token)
+router.get('/profile', protect, userController.getUserProfile);
+
 // GET /api/users/email/:email - Get user by email (used by user dashboard)
 router.get('/email/:email', userController.getUserByEmail);
 

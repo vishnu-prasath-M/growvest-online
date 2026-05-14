@@ -16,11 +16,10 @@ const syncInvestmentInterest = async (inv) => {
 
   // Feature 4: Reset Wrong Interest Data (Version 3)
   if (inv.interestLogicVersion !== 3) {
+    await Investment.updateOne({ _id: inv._id }, { $set: { interestEarned: 0, interestLogicVersion: 3, lastInterestCalculatedAt: startDate } });
     inv.interestEarned = 0;
     inv.interestLogicVersion = 3;
-    // Set last calculated to start date
     inv.lastInterestCalculatedAt = startDate;
-    await inv.save();
   }
 
   const lastCalcAt = inv.lastInterestCalculatedAt ? new Date(inv.lastInterestCalculatedAt) : startDate;
@@ -37,102 +36,118 @@ const syncInvestmentInterest = async (inv) => {
       // Daily Interest = (Amount * Rate) / 100 / 365
       const dailyInterest = (inv.amount * rate) / 100 / 365;
       
-      // Cumulative: interest = interest + dailyInterest
+      await Investment.updateOne({ _id: inv._id }, { $set: { interestEarned: inv.interestEarned + (dailyInterest * diffDays), lastInterestCalculatedAt: today } });
       inv.interestEarned = (inv.interestEarned || 0) + (dailyInterest * diffDays);
       inv.lastInterestCalculatedAt = today;
-      await inv.save();
     }
   }
   return inv.interestEarned || 0;
+};
+
+// Helper to get enriched user data by any query (email or ID)
+const getEnrichedUserData = async (query) => {
+  const user = await User.findOne(query);
+  if (!user) return null;
+
+  const email = user.email;
+
+  // Get all approved investments
+  const investments = await Investment.find({ 
+    userEmail: email, 
+    status: 'approved' 
+  });
+
+  // Run Sync Logic for each investment
+  for (const inv of investments) {
+    await syncInvestmentInterest(inv);
+  }
+
+  // Get all paid withdrawals
+  const withdrawals = await Withdrawal.find({ 
+    userEmail: email, 
+    status: 'paid' 
+  });
+
+  // Separate by type
+  const savingInvestments = investments.filter(inv => inv.type === 'saving');
+  const fixedInvestments = investments.filter(inv => inv.type === 'fixed');
+
+  const savingWithdrawals = withdrawals.filter(wd => wd.withdrawType === 'saving');
+  const fixedWithdrawals = withdrawals.filter(wd => wd.withdrawType === 'fixed');
+
+  // Calculate totals for SAVING
+  const savingInvested = savingInvestments.reduce((acc, inv) => acc + inv.amount, 0);
+  const savingInterest = savingInvestments.reduce((acc, inv) => acc + (inv.interestEarned || 0), 0);
+  const savingWithdrawn = savingWithdrawals.reduce((acc, wd) => acc + wd.amount, 0);
+  let savingBalance = savingInvested + savingInterest - savingWithdrawn;
+  if (savingBalance < 0) savingBalance = 0;
+
+  // Calculate totals for FIXED
+  const fixedInvested = fixedInvestments.reduce((acc, inv) => acc + inv.amount, 0);
+  const fixedInterest = fixedInvestments.reduce((acc, inv) => acc + (inv.interestEarned || 0), 0);
+  const fixedWithdrawn = fixedWithdrawals.reduce((acc, wd) => acc + wd.amount, 0);
+  let fixedBalance = fixedInvested + fixedInterest - fixedWithdrawn;
+  if (fixedBalance < 0) fixedBalance = 0;
+
+  const availableFixed = fixedInvestments.filter(inv => {
+    const diffDays = (new Date() - new Date(inv.startDate)) / (1000 * 60 * 60 * 24);
+    return diffDays >= 365;
+  }).reduce((acc, inv) => acc + inv.amount + (inv.interestEarned || 0), 0);
+
+  const availableToWithdraw = savingBalance + Math.max(0, availableFixed - fixedWithdrawn);
+
+  // Total balance
+  let totalBalance = savingBalance + fixedBalance;
+  if (totalBalance < 0) totalBalance = 0;
+
+  // Total calculations
+  const totalInvested = savingInvested + fixedInvested;
+  const totalInterest = savingInterest + fixedInterest;
+  const totalWithdrawn = savingWithdrawn + fixedWithdrawn;
+
+  return {
+    ...user.toObject(),
+    balance: totalBalance,
+    totalBalance,
+    savingBalance,
+    fixedBalance,
+    availableToWithdraw,
+    totalInvested,
+    totalInterest,
+    totalWithdrawn,
+    saving: {
+      invested: savingInvested,
+      interest: savingInterest,
+      withdrawn: savingWithdrawn,
+      balance: savingBalance
+    },
+    fixed: {
+      invested: fixedInvested,
+      interest: fixedInterest,
+      withdrawn: fixedWithdrawn,
+      balance: fixedBalance
+    }
+  };
+};
+
+// Get user profile (using token)
+exports.getUserProfile = async (req, res) => {
+  try {
+    const data = await getEnrichedUserData({ _id: req.user.id });
+    if (!data) return res.status(404).json({ message: 'User not found' });
+    res.status(200).json(data);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching profile', error: error.message });
+  }
 };
 
 // Get user balances – CORRECT DAILY CALCULATION
 exports.getUserByEmail = async (req, res) => {
   try {
     const { email } = req.params;
-    
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    // Get all approved investments
-    const investments = await Investment.find({ 
-      userEmail: email, 
-      status: 'approved' 
-    });
-
-    // Run Sync Logic for each investment
-    for (const inv of investments) {
-      await syncInvestmentInterest(inv);
-    }
-
-    // Get all paid withdrawals
-    const withdrawals = await Withdrawal.find({ 
-      userEmail: email, 
-      status: 'paid' 
-    });
-
-    // Separate by type
-    const savingInvestments = investments.filter(inv => inv.type === 'saving');
-    const fixedInvestments = investments.filter(inv => inv.type === 'fixed');
-
-    const savingWithdrawals = withdrawals.filter(wd => wd.withdrawType === 'saving');
-    const fixedWithdrawals = withdrawals.filter(wd => wd.withdrawType === 'fixed');
-
-    // Calculate totals for SAVING
-    const savingInvested = savingInvestments.reduce((acc, inv) => acc + inv.amount, 0);
-    const savingInterest = savingInvestments.reduce((acc, inv) => acc + (inv.interestEarned || 0), 0);
-    const savingWithdrawn = savingWithdrawals.reduce((acc, wd) => acc + wd.amount, 0);
-    let savingBalance = savingInvested + savingInterest - savingWithdrawn;
-    if (savingBalance < 0) savingBalance = 0;
-
-    // Calculate totals for FIXED
-    const fixedInvested = fixedInvestments.reduce((acc, inv) => acc + inv.amount, 0);
-    const fixedInterest = fixedInvestments.reduce((acc, inv) => acc + (inv.interestEarned || 0), 0);
-    const fixedWithdrawn = fixedWithdrawals.reduce((acc, wd) => acc + wd.amount, 0);
-    let fixedBalance = fixedInvested + fixedInterest - fixedWithdrawn;
-    if (fixedBalance < 0) fixedBalance = 0;
-
-    const availableFixed = fixedInvestments.filter(inv => {
-      const diffDays = (new Date() - new Date(inv.startDate)) / (1000 * 60 * 60 * 24);
-      return diffDays >= 365;
-    }).reduce((acc, inv) => acc + inv.amount + (inv.interestEarned || 0), 0);
-
-    const availableToWithdraw = savingBalance + Math.max(0, availableFixed - fixedWithdrawn);
-
-    // Total balance
-    let totalBalance = savingBalance + fixedBalance;
-    if (totalBalance < 0) totalBalance = 0;
-
-    // Total calculations (Feature 3: Total Earnings)
-    const totalInvested = savingInvested + fixedInvested;
-    const totalInterest = savingInterest + fixedInterest;
-    const totalWithdrawn = savingWithdrawn + fixedWithdrawn;
-
-    res.status(200).json({
-      ...user.toObject(),
-      balance: totalBalance,
-      totalBalance,
-      savingBalance,
-      fixedBalance,
-      availableToWithdraw,
-      totalInvested,
-      totalInterest,
-      totalWithdrawn,
-      saving: {
-        invested: savingInvested,
-        interest: savingInterest,
-        withdrawn: savingWithdrawn,
-        balance: savingBalance
-      },
-      fixed: {
-        invested: fixedInvested,
-        interest: fixedInterest,
-        withdrawn: fixedWithdrawn,
-        balance: fixedBalance
-      }
-    });
+    const data = await getEnrichedUserData({ email });
+    if (!data) return res.status(404).json({ message: 'User not found' });
+    res.status(200).json(data);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching user', error: error.message });
   }
@@ -279,8 +294,8 @@ exports.getAllUsers = async (req, res) => {
       
       // Update balance if changed
       if (user.balance !== currentBalance) {
-        user.balance = currentBalance;
-        await user.save();
+        await User.updateOne({ _id: user._id }, { $set: { balance: currentBalance } });
+        user.balance = currentBalance; // update the local object for response
       }
 
       return {

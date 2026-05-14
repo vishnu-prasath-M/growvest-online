@@ -23,7 +23,7 @@ import FloatingContactButton from "./components/FloatingContactButton";
 const queryClient = new QueryClient();
 
 const App = () => {
-  const { token, loading } = useAuth();
+  const { token, user, loading } = useAuth();
 
   if (loading) {
     return (
@@ -42,10 +42,10 @@ const App = () => {
         <BrowserRouter>
           <ScrollToTop />
           <Routes>
-            {/* Root route: Redirect based on auth status */}
+            {/* Root route: Redirect to dashboard if logged in, else landing page (Index) */}
             <Route 
               path="/" 
-              element={token ? <Index /> : <Navigate to="/login" replace />} 
+              element={token ? (user?.role === 'admin' ? <Navigate to="/admin" replace /> : <Navigate to="/dashboard" replace />) : <Index />} 
             />
 
             {/* Public routes with redirect if already logged in */}

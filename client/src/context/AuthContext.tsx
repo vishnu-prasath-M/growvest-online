@@ -34,8 +34,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (savedUser && savedUser !== "undefined" && savedUser !== "null") {
       try {
         const parsed = JSON.parse(savedUser);
-        // Basic validation of parsed user
-        if (parsed && parsed.email && parsed.email !== "undefined") {
+        // Basic validation of parsed user - require at least name or username
+        if (parsed && (parsed.name || parsed.username)) {
           return parsed;
         }
         return null;
@@ -63,8 +63,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const userData = await response.json();
             setUser(userData);
             localStorage.setItem('user', JSON.stringify(userData));
-          } else if (response.status === 401 || response.status === 403) {
-            // Token definitely invalid or expired, clear everything
+          } else if (response.status === 401 || response.status === 403 || response.status === 404) {
+            // Token invalid, expired, or user deleted, clear everything
             logout();
           } else {
             // Server error (500, etc.) - do NOT logout, keep the current session
