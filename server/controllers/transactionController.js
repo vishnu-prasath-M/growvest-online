@@ -27,11 +27,17 @@ exports.getAllTransactions = async (req, res) => {
   }
 };
 
-// Get transactions for specific user
+// Get transactions for specific user (by email or mobile number)
 exports.getUserTransactions = async (req, res) => {
   try {
     const { userEmail } = req.params;
-    const transactions = await Transaction.find({ userEmail })
+    // Support old users (email) and new users (mobile number)
+    const transactions = await Transaction.find({
+      $or: [
+        { userEmail: userEmail },
+        { mobileNumber: userEmail }
+      ]
+    })
       .sort({ createdAt: -1 })
       .populate('userId', 'name email');
     res.status(200).json(transactions);

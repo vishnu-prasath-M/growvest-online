@@ -19,7 +19,9 @@ exports.createWithdrawal = async (req, res) => {
     await newWithdrawal.save();
 
     // Create transaction record
-    const user = await User.findOne({ email: userEmail });
+    const user = await User.findOne({ 
+      $or: [{ email: userEmail }, { mobileNumber: userEmail }] 
+    });
     if (user) {
       const transaction = new Transaction({
         userId: user._id,
@@ -69,7 +71,9 @@ exports.updateWithdrawalStatus = async (req, res) => {
 
     // Update user balance and transaction when withdrawal is paid
     if (status === 'paid' && withdrawal.status !== 'paid') {
-      const user = await User.findOne({ email: withdrawal.userEmail });
+      const user = await User.findOne({ 
+        $or: [{ email: withdrawal.userEmail }, { mobileNumber: withdrawal.userEmail }] 
+      });
       if (user) {
         // Deduct from user balance
         user.balance -= withdrawal.amount;

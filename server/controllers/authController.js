@@ -60,12 +60,14 @@ exports.loginUser = async (req, res) => {
       return res.status(400).json({ message: 'Please provide all fields' });
     }
 
-    // Allow login via email OR mobileNumber OR username
+    const identifier = typeof email === 'string' ? email.trim() : email;
+
+    // Allow login via email OR mobileNumber OR username (case-insensitive for email/username)
     const user = await User.findOne({ 
       $or: [
-        { email: email }, 
-        { mobileNumber: email },
-        { username: email }
+        { email: { $regex: new RegExp(`^${identifier}$`, 'i') } }, 
+        { mobileNumber: identifier },
+        { username: { $regex: new RegExp(`^${identifier}$`, 'i') } }
       ] 
     });
 

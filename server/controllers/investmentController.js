@@ -24,11 +24,17 @@ exports.createInvestment = async (req, res) => {
     await newInvestment.save();
 
     // Create transaction record
-    const user = await User.findOne({ email: userEmail });
+    // Support old users (email-only) and new users (mobile number)
+    const user = await User.findOne({ 
+      $or: [
+        ...(userEmail ? [{ email: userEmail }] : []),
+        ...(mobileNumber ? [{ mobileNumber: mobileNumber }] : [])
+      ]
+    });
     if (user) {
       const transaction = new Transaction({
         userId: user._id,
-        userEmail,
+        userEmail: user.email || userEmail,
         type: 'investment',
         amount,
         status: 'pending',
@@ -98,7 +104,13 @@ exports.updateInvestmentStatus = async (req, res) => {
     
     // Update transaction record
     if (status === 'approved' && investment.status !== 'approved') {
-      const user = await User.findOne({ email: investment.userEmail });
+      // Support old users (email-only) and new users (mobile number)
+      const user = await User.findOne({ 
+        $or: [
+          ...(investment.userEmail ? [{ email: investment.userEmail }] : []),
+          ...(investment.mobileNumber ? [{ mobileNumber: investment.mobileNumber }] : [])
+        ]
+      });
       if (user) {
         // Add to user balance
         user.balance += investment.amount;
