@@ -204,7 +204,7 @@ const InvestPage = () => {
   // Safe calculations with fallbacks
   const totalInvested = (pastInvestments || []).filter(i => i?.status === 'approved').reduce((acc, curr) => acc + (curr?.amount || 0), 0);
   const pendingAmount = (pastInvestments || []).filter(i => i?.status === 'pending').reduce((acc, curr) => acc + (curr?.amount || 0), 0);
-  const estAnnualReturn = (pastInvestments || []).filter(i => i?.status === 'approved').reduce((acc, curr) => acc + ((curr?.amount || 0) * (curr?.type === 'fixed' ? 0.12 : 0.07)), 0);
+  const estAnnualReturn = (pastInvestments || []).filter(i => i?.status === 'approved').reduce((acc, curr) => acc + ((curr?.amount || 0) * (curr?.type === 'fixed' ? 0.24 : 0.12)), 0);
 
 
   const handleInvest = async () => {

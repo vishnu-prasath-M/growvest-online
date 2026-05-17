@@ -7,7 +7,7 @@ exports.createInvestment = async (req, res) => {
   try {
     const { amount, type, userName, userEmail, mobileNumber } = req.body;
     const refCode = `INV-${Date.now().toString().slice(-6)}`;
-    const interestRate = type === 'fixed' ? 12 : 7;
+    const interestRate = type === 'fixed' ? 24 : 12;
 
     const newInvestment = new Investment({
       amount,

@@ -32,7 +32,7 @@ const syncInvestmentInterest = async (inv) => {
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     
     if (diffDays > 0) {
-      const rate = inv.type === 'fixed' ? 12 : 7;
+      const rate = inv.type === 'fixed' ? 24 : 12;
       // Daily Interest = (Amount * Rate) / 100 / 365
       const dailyInterest = (inv.amount * rate) / 100 / 365;
       
