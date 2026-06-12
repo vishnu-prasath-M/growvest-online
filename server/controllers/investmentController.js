@@ -102,7 +102,22 @@ exports.updateInvestmentStatus = async (req, res) => {
 
     const updatedInvestment = await Investment.findByIdAndUpdate(id, { status }, { new: true });
     
-    // Update transaction record
+    // Update transaction record status
+    await Transaction.findOneAndUpdate(
+      { referenceId: investment._id, referenceType: 'Investment' },
+      { 
+        status: status,
+        updatedAt: new Date(),
+        description: status === 'approved'
+          ? `Investment approved - ₹${investment.amount}`
+          : status === 'rejected'
+            ? `Investment rejected - ₹${investment.amount}`
+            : `Investment pending review - ₹${investment.amount}`
+      },
+      { new: true }
+    );
+
+    // Update user balance when investment is approved
     if (status === 'approved' && investment.status !== 'approved') {
       // Support old users (email-only) and new users (mobile number)
       const user = await User.findOne({ 
@@ -115,17 +130,6 @@ exports.updateInvestmentStatus = async (req, res) => {
         // Add to user balance
         user.balance += investment.amount;
         await user.save();
-
-        // Update transaction record
-        await Transaction.findOneAndUpdate(
-          { referenceId: investment._id, referenceType: 'Investment' },
-          { 
-            status: 'approved',
-            updatedAt: new Date(),
-            description: `Investment approved - ₹${investment.amount}`
-          },
-          { new: true }
-        );
       }
     }
 
@@ -158,9 +162,10 @@ exports.withdrawInvestment = async (req, res) => {
       }
     }
 
-    await Investment.findByIdAndDelete(id);
+    investment.status = 'withdrawn';
+    await investment.save();
 
-    res.status(200).json({ message: 'Withdrawal successful' });
+    res.status(200).json({ message: 'Withdrawal successful', investment });
   } catch (error) {
     res.status(500).json({ message: 'Error processing withdrawal', error: error.message });
   }

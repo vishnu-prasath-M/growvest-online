@@ -50,11 +50,15 @@ const statusConfig: Record<string, { label: string; className: string }> = {
   approved: { label: "Approved", className: "bg-accent text-accent-foreground" },
   pending: { label: "Pending Review", className: "bg-amber-50 text-amber-700" },
   rejected: { label: "Rejected", className: "bg-red-50 text-red-600" },
+  withdrawn: { label: "Withdrawn", className: "bg-gray-100 text-gray-600" },
   Approved: { label: "Approved", className: "bg-accent text-accent-foreground" },
   Credited: { label: "Credited", className: "bg-secondary/10 text-secondary" },
   Pending: { label: "Pending", className: "bg-amber-50 text-amber-700" },
   Processed: { label: "Processed", className: "bg-blue-50 text-blue-600" },
   Rejected: { label: "Rejected", className: "bg-red-50 text-red-600" },
+  Withdrawn: { label: "Withdrawn", className: "bg-gray-100 text-gray-600" },
+  Completed: { label: "Completed", className: "bg-accent text-accent-foreground" },
+  Paid: { label: "Paid", className: "bg-accent text-accent-foreground" },
 };
 
 type NavTab = "overview" | "investments" | "history" | "withdraw";
@@ -310,14 +314,26 @@ const UserDashboard = () => {
   }, [userEmail, token, withdrawDone, isPaidWithdrawal]);
 
   // Transform transactions from backend for display
-  const displayTransactions = transactions.map(t => ({
-    id: t._id || t.id || "N/A",
-    date: safeDate(t.createdAt),
-    type: t.type === 'investment' ? 'Investment' : 'Withdrawal',
-    amount: t.type === 'investment' ? `+₹${safeCurrency(t.amount)}` : `-₹${safeCurrency(t.amount)}`,
-    status: t.status === 'approved' ? 'Completed' : t.status === 'paid' ? 'Paid' : t.status === 'pending' ? 'Pending' : t.status === 'requested' ? 'Requested' : t.status === 'rejected' ? 'Rejected' : 'Unknown',
-    description: t.description || ''
-  }));
+  const displayTransactions = transactions.map(t => {
+    let uiStatus = 'Pending';
+    if (t.type === 'investment') {
+      if (t.status === 'approved') uiStatus = 'Completed';
+      else if (t.status === 'rejected') uiStatus = 'Rejected';
+      else uiStatus = 'Pending';
+    } else if (t.type === 'withdrawal') {
+      if (t.status === 'paid') uiStatus = 'Paid';
+      else if (t.status === 'rejected') uiStatus = 'Rejected';
+      else uiStatus = 'Pending';
+    }
+    return {
+      id: t._id || t.id || "N/A",
+      date: safeDate(t.createdAt),
+      type: t.type === 'investment' ? 'Investment' : 'Withdrawal',
+      amount: t.type === 'investment' ? `+₹${safeCurrency(t.amount)}` : `-₹${safeCurrency(t.amount)}`,
+      status: uiStatus,
+      description: t.description || ''
+    };
+  });
 
   // Refresh transactions function
   const refreshTransactions = () => {

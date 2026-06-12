@@ -79,6 +79,60 @@ exports.updateWithdrawalStatus = async (req, res) => {
         user.balance -= withdrawal.amount;
         await user.save();
 
+        // Deduct withdrawal amount from user's approved investments of withdrawal.withdrawType
+        const investOrConditions = [];
+        if (withdrawal.userEmail) investOrConditions.push({ userEmail: withdrawal.userEmail });
+        if (user.mobileNumber) investOrConditions.push({ mobileNumber: user.mobileNumber });
+
+        const Investment = require('../models/Investment');
+        const approvedInvestments = await Investment.find({
+          $or: investOrConditions,
+          status: 'approved',
+          type: withdrawal.withdrawType
+        }).sort({ startDate: 1 });
+
+        let remainingWithdrawAmount = withdrawal.amount;
+        for (const inv of approvedInvestments) {
+          if (remainingWithdrawAmount <= 0) break;
+
+          let updatedInterestEarned = inv.interestEarned || 0;
+          let updatedAmount = inv.amount || 0;
+          let updatedStatus = inv.status;
+
+          // 1. Deduct from interest first
+          if (remainingWithdrawAmount >= updatedInterestEarned) {
+            remainingWithdrawAmount -= updatedInterestEarned;
+            updatedInterestEarned = 0;
+          } else {
+            updatedInterestEarned -= remainingWithdrawAmount;
+            remainingWithdrawAmount = 0;
+          }
+
+          // 2. Deduct from amount/principal next
+          if (remainingWithdrawAmount > 0) {
+            if (remainingWithdrawAmount >= updatedAmount) {
+              remainingWithdrawAmount -= updatedAmount;
+              updatedAmount = 0;
+              updatedStatus = 'withdrawn';
+            } else {
+              updatedAmount -= remainingWithdrawAmount;
+              remainingWithdrawAmount = 0;
+            }
+          }
+
+          // Save the updated investment
+          await Investment.updateOne(
+            { _id: inv._id },
+            { 
+              $set: { 
+                amount: updatedAmount, 
+                interestEarned: updatedInterestEarned,
+                status: updatedStatus
+              } 
+            }
+          );
+        }
+
         // Update transaction record
         await Transaction.findOneAndUpdate(
           { referenceId: withdrawal._id, referenceType: 'Withdrawal' },
@@ -90,14 +144,18 @@ exports.updateWithdrawalStatus = async (req, res) => {
           { new: true }
         );
       }
-    } else if (status === 'approved') {
-      // Update transaction record for approval
+    } else {
+      // Update transaction record for other statuses (approved, rejected, pending/requested)
       await Transaction.findOneAndUpdate(
         { referenceId: withdrawal._id, referenceType: 'Withdrawal' },
         { 
-          status: 'approved',
+          status: status === 'approved' ? 'approved' : status === 'rejected' ? 'rejected' : 'pending',
           updatedAt: new Date(),
-          description: `Withdrawal approved - ₹${withdrawal.amount}`
+          description: status === 'approved' 
+            ? `Withdrawal approved - ₹${withdrawal.amount}` 
+            : status === 'rejected'
+              ? `Withdrawal rejected - ₹${withdrawal.amount}`
+              : `Withdrawal requested - ₹${withdrawal.amount}`
         },
         { new: true }
       );

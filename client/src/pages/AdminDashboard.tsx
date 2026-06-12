@@ -53,7 +53,7 @@ interface UserData {
 
 const usersData: any[] = []; // Removed static
 
-type WithdrawStatus = "pending" | "approved" | "rejected";
+type WithdrawStatus = "pending" | "approved" | "rejected" | "paid";
 interface WithdrawReq {
   id: string;
   user: string;
@@ -72,6 +72,8 @@ const statusStyle: Record<string, string> = {
   rejected: "bg-red-50 text-red-600 border-red-200",
   Active: "bg-accent text-accent-foreground border-accent-foreground/10",
   New: "bg-blue-50 text-blue-600 border-blue-200",
+  withdrawn: "bg-gray-100 text-gray-600 border-gray-200",
+  paid: "bg-accent text-accent-foreground border-accent-foreground/10",
 };
 
 type AdminTab = "overview" | "pending" | "users" | "withdrawals" | "settings";

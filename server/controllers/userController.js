@@ -89,14 +89,14 @@ const getEnrichedUserData = async (query) => {
   const savingInvested = savingInvestments.reduce((acc, inv) => acc + inv.amount, 0);
   const savingInterest = savingInvestments.reduce((acc, inv) => acc + (inv.interestEarned || 0), 0);
   const savingWithdrawn = savingWithdrawals.reduce((acc, wd) => acc + wd.amount, 0);
-  let savingBalance = savingInvested + savingInterest - savingWithdrawn;
+  let savingBalance = savingInvested + savingInterest;
   if (savingBalance < 0) savingBalance = 0;
 
   // Calculate totals for FIXED
   const fixedInvested = fixedInvestments.reduce((acc, inv) => acc + inv.amount, 0);
   const fixedInterest = fixedInvestments.reduce((acc, inv) => acc + (inv.interestEarned || 0), 0);
   const fixedWithdrawn = fixedWithdrawals.reduce((acc, wd) => acc + wd.amount, 0);
-  let fixedBalance = fixedInvested + fixedInterest - fixedWithdrawn;
+  let fixedBalance = fixedInvested + fixedInterest;
   if (fixedBalance < 0) fixedBalance = 0;
 
   const availableFixed = fixedInvestments.filter(inv => {
@@ -104,7 +104,7 @@ const getEnrichedUserData = async (query) => {
     return diffDays >= 365;
   }).reduce((acc, inv) => acc + inv.amount + (inv.interestEarned || 0), 0);
 
-  const availableToWithdraw = savingBalance + Math.max(0, availableFixed - fixedWithdrawn);
+  const availableToWithdraw = savingBalance + availableFixed;
 
   // Total balance
   let totalBalance = savingBalance + fixedBalance;
@@ -211,12 +211,12 @@ exports.getUserDetailByEmail = async (req, res) => {
     const savingInvested = savingInvestments.reduce((acc, inv) => acc + inv.amount, 0);
     const savingInterest = savingInvestments.reduce((acc, inv) => acc + (inv.interestEarned || 0), 0);
     const savingWithdrawn = savingWithdrawals.reduce((acc, wd) => acc + wd.amount, 0);
-    const savingBalance = Math.max(0, savingInvested + savingInterest - savingWithdrawn);
+    const savingBalance = Math.max(0, savingInvested + savingInterest);
 
     const fixedInvested = fixedInvestments.reduce((acc, inv) => acc + inv.amount, 0);
     const fixedInterest = fixedInvestments.reduce((acc, inv) => acc + (inv.interestEarned || 0), 0);
     const fixedWithdrawn = fixedWithdrawals.reduce((acc, wd) => acc + wd.amount, 0);
-    const fixedBalance = Math.max(0, fixedInvested + fixedInterest - fixedWithdrawn);
+    const fixedBalance = Math.max(0, fixedInvested + fixedInterest);
 
     const totalInvested = savingInvested + fixedInvested;
     const totalInterest = savingInterest + fixedInterest;
@@ -227,7 +227,7 @@ exports.getUserDetailByEmail = async (req, res) => {
       return diffDays >= 365;
     }).reduce((acc, inv) => acc + inv.amount + (inv.interestEarned || 0), 0);
     
-    const availableToWithdrawDetail = savingBalance + Math.max(0, withdrawableFixed - fixedWithdrawn);
+    const availableToWithdrawDetail = savingBalance + withdrawableFixed;
 
     res.status(200).json({
       user,
