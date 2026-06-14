@@ -188,16 +188,52 @@ const UserDashboard = () => {
   const fixedInvestments = investments.filter(i => i?.type === 'fixed');
 
 
-  useEffect(() => {
-    if (!userEmail || !token) return;
+  const userMobile = dbUser?.mobileNumber || "";
+
+  const refreshAllDashboardData = () => {
+    if (!token) return;
+
+    const currentEmail = dbUser?.email || userEmail;
+    const currentMobile = dbUser?.mobileNumber || userMobile;
+
+    fetch(`${API_URL}/api/users/profile`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data && typeof data.balance === 'number') {
+          setUserBalance(data.balance);
+          // Set all balance values from backend (with safety for negative)
+          setSavingBalance(Math.max(0, data.savingBalance || 0));
+          setFixedBalance(Math.max(0, data.fixedBalance || 0));
+          setTotalInvested(Math.max(0, data.totalInvested || 0));
+          setTotalInterest(Math.max(0, data.totalInterest || 0));
+          setTotalWithdrawn(Math.max(0, data.totalWithdrawn || 0));
+          setAvailableToWithdraw(Math.max(0, data.availableToWithdraw || 0));
+          if (data.email || data.username) {
+            setDbUser(data);
+          }
+        }
+      })
+      .catch(err => {
+        console.error('Error fetching user balance:', err);
+      });
+
+    if (!currentEmail) return;
 
     fetch(`${API_URL}/api/investments`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
       .then(data => {
-        if (Array.isArray(data)) setInvestments(data.filter(i => i.userEmail === userEmail));
-        else setInvestments([]);
+        if (Array.isArray(data)) {
+          setInvestments(data.filter(i => 
+            (currentEmail && i.userEmail?.toLowerCase() === currentEmail.toLowerCase()) || 
+            (currentMobile && i.mobileNumber === currentMobile)
+          ));
+        } else {
+          setInvestments([]);
+        }
       })
       .catch(err => {
         console.error("Error fetching investments:", err);
@@ -209,36 +245,43 @@ const UserDashboard = () => {
     })
       .then(res => res.json())
       .then(data => {
-        if (Array.isArray(data)) setWithdrawals(data.filter(w => w.userEmail === userEmail));
-        else setWithdrawals([]);
+        if (Array.isArray(data)) {
+          setWithdrawals(data.filter(w => 
+            (currentEmail && w.userEmail?.toLowerCase() === currentEmail.toLowerCase()) || 
+            (currentMobile && w.mobileNumber === currentMobile)
+          ));
+        } else {
+          setWithdrawals([]);
+        }
       })
       .catch(err => {
         console.error("Error fetching withdrawals:", err);
         setWithdrawals([]);
       });
 
-    // Fetch transactions
-    setTransactionsLoading(true);
-    fetch(`${API_URL}/api/transactions/user/${userEmail}`, {
+    fetch(`${API_URL}/api/transactions/user/${currentEmail}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
           setTransactions(data);
-          console.log('Transactions loaded:', data.length);
         } else {
           setTransactions([]);
-          console.log('No transactions data received');
         }
-        setTransactionsLoading(false);
       })
       .catch(err => {
         console.error("Error fetching transactions:", err);
         setTransactions([]);
-        setTransactionsLoading(false);
       });
-  }, [userEmail, token]);
+  };
+
+  useEffect(() => {
+    if (!token) return;
+    refreshAllDashboardData();
+    const interval = setInterval(refreshAllDashboardData, 3000);
+    return () => clearInterval(interval);
+  }, [token, userEmail, dbUser?.email, dbUser?.mobileNumber]);
 
   // Automatic dismissal for "Withdraw Successful" message
   useEffect(() => {
@@ -250,68 +293,10 @@ const UserDashboard = () => {
     }
   }, [isPaidWithdrawal, withdrawDone, dismissedPaidSuccess]);
 
-  // Refresh data when withdrawal status changes
-  useEffect(() => {
-    if (withdrawDone || isPaidWithdrawal) {
-      // Refresh all data to get updated balance
-      const refreshData = () => {
-        fetch(`${API_URL}/api/investments`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-          .then(res => res.json())
-          .then(data => {
-            if (Array.isArray(data)) setInvestments(data.filter(i => i.userEmail === userEmail));
-            else setInvestments([]);
-          })
-          .catch(err => {
-            console.error("Error refreshing investments:", err);
-            setInvestments([]);
-          });
-
-        fetch(`${API_URL}/api/withdrawals`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-          .then(res => res.json())
-          .then(data => {
-            if (Array.isArray(data)) setWithdrawals(data.filter(w => w.userEmail === userEmail));
-            else setWithdrawals([]);
-          })
-          .catch(err => {
-            console.error("Error refreshing withdrawals:", err);
-            setWithdrawals([]);
-          });
-
-        refreshTransactions();
-      };
-
-      refreshData();
-    }
-  }, [withdrawDone, isPaidWithdrawal]);
-
-  // Fetch user balance from backend
-  useEffect(() => {
-    if (token) {
-      fetch(`${API_URL}/api/users/profile`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data && typeof data.balance === 'number') {
-            setUserBalance(data.balance);
-            // Set all balance values from backend (with safety for negative)
-            setSavingBalance(Math.max(0, data.savingBalance || 0));
-            setFixedBalance(Math.max(0, data.fixedBalance || 0));
-            setTotalInvested(Math.max(0, data.totalInvested || 0));
-            setTotalInterest(Math.max(0, data.totalInterest || 0));
-            setTotalWithdrawn(Math.max(0, data.totalWithdrawn || 0));
-            setAvailableToWithdraw(Math.max(0, data.availableToWithdraw || 0));
-          }
-        })
-        .catch(err => {
-          console.error('Error fetching user balance:', err);
-        });
-    }
-  }, [userEmail, token, withdrawDone, isPaidWithdrawal]);
+  // Refresh transactions function
+  const refreshTransactions = () => {
+    refreshAllDashboardData();
+  };
 
   // Transform transactions from backend for display
   const displayTransactions = transactions.map(t => {
@@ -321,7 +306,7 @@ const UserDashboard = () => {
       else if (t.status === 'rejected') uiStatus = 'Rejected';
       else uiStatus = 'Pending';
     } else if (t.type === 'withdrawal') {
-      if (t.status === 'paid') uiStatus = 'Paid';
+      if (t.status === 'paid' || t.status === 'approved') uiStatus = 'Completed';
       else if (t.status === 'rejected') uiStatus = 'Rejected';
       else uiStatus = 'Pending';
     }
@@ -335,28 +320,7 @@ const UserDashboard = () => {
     };
   });
 
-  // Refresh transactions function
-  const refreshTransactions = () => {
-    if (!token) return;
-    setTransactionsLoading(true);
-    fetch(`${API_URL}/api/transactions/user/${userEmail}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setTransactions(data);
-        } else {
-          setTransactions([]);
-        }
-        setTransactionsLoading(false);
-      })
-      .catch(err => {
-        console.error("Error refreshing transactions:", err);
-        setTransactions([]);
-        setTransactionsLoading(false);
-      });
-  };
+
 
   const activeTypes = Array.from(new Set(investments.filter(i => i?.status === 'approved').map(i => i?.type).filter(Boolean)));
 
@@ -369,8 +333,7 @@ const UserDashboard = () => {
     depositBadge = "Fixed Deposit";
     returnRate = "Fixed: 24% yearly";
   } else if (activeTypes.length > 1) {
-    // When user has both types, don't show a combined badge
-    depositBadge = "";
+    depositBadge = "Active Deposits";
     returnRate = "12-24% yearly";
   }
 
@@ -782,6 +745,9 @@ const UserDashboard = () => {
                               <div className="text-right ml-2">
                                 <p className="text-sm font-body font-semibold text-foreground">₹{safeCurrency(inv?.amount)}</p>
                                 <p className="text-xs font-body text-secondary">Interest: ₹{safeDecimal(inv?.interestEarned || 0)}</p>
+                                {status === "approved" && (
+                                  <p className="text-xs font-body font-semibold text-primary">Balance: ₹{safeDecimal(inv?.amount + (inv?.interestEarned || 0))}</p>
+                                )}
                                 <p className="text-xs font-body text-muted-foreground">12% yearly</p>
                                 <span className={`text-[10px] font-body font-medium px-2 py-0.5 rounded-full ${cfg.className}`}>
                                   {cfg.label}
@@ -841,6 +807,9 @@ const UserDashboard = () => {
                               <div className="text-right ml-2">
                                 <p className="text-sm font-body font-semibold text-foreground">₹{safeCurrency(inv?.amount)}</p>
                                 <p className="text-xs font-body text-secondary">Interest: ₹{safeDecimal(inv?.interestEarned || 0)}</p>
+                                {status === "approved" && (
+                                  <p className="text-xs font-body font-semibold text-primary">Balance: ₹{safeDecimal(inv?.amount + (inv?.interestEarned || 0))}</p>
+                                )}
                                 <p className="text-xs font-body text-muted-foreground">24% yearly</p>
                                 <p className="text-xs font-body text-muted-foreground">
                                   {isLocked ? `Locked until ${safeDate(lockedUntil)}` : "Unlocked"}
@@ -914,7 +883,12 @@ const UserDashboard = () => {
                             <span className="text-[10px] text-muted-foreground">{isLocked ? `Locked until ${safeDate(lockedUntil)}` : "Withdraw anytime"}</span>
                           </TableCell>
                           <TableCell className="font-body text-sm font-semibold text-foreground">₹{safeCurrency(inv?.amount)}</TableCell>
-                          <TableCell className="font-body text-sm font-semibold text-secondary">₹{safeCurrency(Math.round(inv?.totalInterest || 0))}</TableCell>
+                          <TableCell className="font-body text-sm font-semibold text-secondary">
+                            ₹{safeDecimal(inv?.interestEarned || 0)}
+                            {status === "approved" && (
+                              <div className="text-[10px] text-primary">Balance: ₹{safeDecimal(inv?.amount + (inv?.interestEarned || 0))}</div>
+                            )}
+                          </TableCell>
 
                           <TableCell>
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-body font-medium ${cfg.className}`}>

@@ -821,8 +821,8 @@ const AdminDashboard = () => {
 
       {/* Pay Modal */}
       {payModalData && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 mt-16">
-          <div className="bg-card border border-border rounded-2xl w-full max-w-sm p-6 shadow-xl relative animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-card border border-border rounded-2xl w-full max-w-sm p-6 shadow-xl relative animate-in fade-in zoom-in duration-200 my-auto max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setPayModalData(null)}
               className="absolute right-4 top-4 text-muted-foreground hover:text-foreground"

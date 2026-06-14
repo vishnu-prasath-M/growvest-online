@@ -69,8 +69,8 @@ exports.updateWithdrawalStatus = async (req, res) => {
     // Update withdrawal status
     const updatedWithdrawal = await Withdrawal.findByIdAndUpdate(id, updateData, { new: true });
 
-    // Update user balance and transaction when withdrawal is paid
-    if (status === 'paid' && withdrawal.status !== 'paid') {
+    // Update user balance and transaction when withdrawal is paid or approved
+    if ((status === 'paid' || status === 'approved') && withdrawal.status !== 'paid' && withdrawal.status !== 'approved') {
       const user = await User.findOne({ 
         $or: [{ email: withdrawal.userEmail }, { mobileNumber: withdrawal.userEmail }] 
       });
@@ -137,7 +137,7 @@ exports.updateWithdrawalStatus = async (req, res) => {
         await Transaction.findOneAndUpdate(
           { referenceId: withdrawal._id, referenceType: 'Withdrawal' },
           { 
-            status: 'paid',
+            status: status,
             updatedAt: new Date(),
             description: `Withdrawal completed - ₹${withdrawal.amount}`
           },
@@ -145,17 +145,15 @@ exports.updateWithdrawalStatus = async (req, res) => {
         );
       }
     } else {
-      // Update transaction record for other statuses (approved, rejected, pending/requested)
+      // Update transaction record for other statuses (rejected, pending/requested)
       await Transaction.findOneAndUpdate(
         { referenceId: withdrawal._id, referenceType: 'Withdrawal' },
         { 
-          status: status === 'approved' ? 'approved' : status === 'rejected' ? 'rejected' : 'pending',
+          status: status === 'rejected' ? 'rejected' : 'pending',
           updatedAt: new Date(),
-          description: status === 'approved' 
-            ? `Withdrawal approved - ₹${withdrawal.amount}` 
-            : status === 'rejected'
-              ? `Withdrawal rejected - ₹${withdrawal.amount}`
-              : `Withdrawal requested - ₹${withdrawal.amount}`
+          description: status === 'rejected'
+            ? `Withdrawal rejected - ₹${withdrawal.amount}`
+            : `Withdrawal requested - ₹${withdrawal.amount}`
         },
         { new: true }
       );
