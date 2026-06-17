@@ -966,7 +966,7 @@ const AdminDashboard = () => {
                     });
                     if (res.ok) {
                       setWithdrawList(prev =>
-                        prev.map((w) => (w.id === payModalData.id ? { ...w, status: 'approved' } : w)) // UI uses 'approved' for green paid state
+                        prev.map((w) => (w.id === payModalData.id ? { ...w, status: 'paid' } : w))
                       );
                       setPayModalData(null);
                     }

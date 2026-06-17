@@ -32,6 +32,10 @@ const withdrawalSchema = new mongoose.Schema({
   },
   date: {
     type: String, // String for easier display on frontend matching previous logic
+  },
+  processed: {
+    type: Boolean,
+    default: false
   }
 }, { timestamps: true });
 

@@ -89,20 +89,22 @@ const getEnrichedUserData = async (query) => {
   const savingInvested = savingInvestments.reduce((acc, inv) => acc + inv.amount, 0);
   const savingInterest = savingInvestments.reduce((acc, inv) => acc + (inv.interestEarned || 0), 0);
   const savingWithdrawn = savingWithdrawals.reduce((acc, wd) => acc + wd.amount, 0);
-  let savingBalance = savingInvested + savingInterest;
+  let savingBalance = savingInvested + savingInterest - savingWithdrawn;
   if (savingBalance < 0) savingBalance = 0;
 
   // Calculate totals for FIXED
   const fixedInvested = fixedInvestments.reduce((acc, inv) => acc + inv.amount, 0);
   const fixedInterest = fixedInvestments.reduce((acc, inv) => acc + (inv.interestEarned || 0), 0);
   const fixedWithdrawn = fixedWithdrawals.reduce((acc, wd) => acc + wd.amount, 0);
-  let fixedBalance = fixedInvested + fixedInterest;
+  let fixedBalance = fixedInvested + fixedInterest - fixedWithdrawn;
   if (fixedBalance < 0) fixedBalance = 0;
 
-  const availableFixed = fixedInvestments.filter(inv => {
+  // Fixed deposits that have matured (365+ days) minus what's been withdrawn from fixed
+  const rawAvailableFixed = fixedInvestments.filter(inv => {
     const diffDays = (new Date() - new Date(inv.startDate)) / (1000 * 60 * 60 * 24);
     return diffDays >= 365;
   }).reduce((acc, inv) => acc + inv.amount + (inv.interestEarned || 0), 0);
+  const availableFixed = Math.max(0, rawAvailableFixed - fixedWithdrawn);
 
   const availableToWithdraw = savingBalance + availableFixed;
 
@@ -211,21 +213,23 @@ exports.getUserDetailByEmail = async (req, res) => {
     const savingInvested = savingInvestments.reduce((acc, inv) => acc + inv.amount, 0);
     const savingInterest = savingInvestments.reduce((acc, inv) => acc + (inv.interestEarned || 0), 0);
     const savingWithdrawn = savingWithdrawals.reduce((acc, wd) => acc + wd.amount, 0);
-    const savingBalance = Math.max(0, savingInvested + savingInterest);
+    const savingBalance = Math.max(0, savingInvested + savingInterest - savingWithdrawn);
 
     const fixedInvested = fixedInvestments.reduce((acc, inv) => acc + inv.amount, 0);
     const fixedInterest = fixedInvestments.reduce((acc, inv) => acc + (inv.interestEarned || 0), 0);
     const fixedWithdrawn = fixedWithdrawals.reduce((acc, wd) => acc + wd.amount, 0);
-    const fixedBalance = Math.max(0, fixedInvested + fixedInterest);
+    const fixedBalance = Math.max(0, fixedInvested + fixedInterest - fixedWithdrawn);
 
     const totalInvested = savingInvested + fixedInvested;
     const totalInterest = savingInterest + fixedInterest;
     const totalBalance = savingBalance + fixedBalance;
 
-    const withdrawableFixed = fixedInvestments.filter(inv => {
+    // Fixed deposits that have matured (365+ days) minus what's been withdrawn from fixed
+    const rawWithdrawableFixed = fixedInvestments.filter(inv => {
       const diffDays = (new Date() - new Date(inv.startDate)) / (1000 * 60 * 60 * 24);
       return diffDays >= 365;
     }).reduce((acc, inv) => acc + inv.amount + (inv.interestEarned || 0), 0);
+    const withdrawableFixed = Math.max(0, rawWithdrawableFixed - fixedWithdrawn);
     
     const availableToWithdrawDetail = savingBalance + withdrawableFixed;
 
